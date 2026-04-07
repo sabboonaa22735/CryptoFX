@@ -16,6 +16,16 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    if (!user.walletStats) {
+      user.walletStats = {
+        availableBalance: user.wallet?.balance || 0,
+        totalDeposit: user.wallet?.deposits || 0,
+        totalWithdraw: user.wallet?.withdrawals || 0,
+        totalProfit: 0
+      };
+      await user.save();
+    }
+
     req.user = user;
     req.token = token;
     next();

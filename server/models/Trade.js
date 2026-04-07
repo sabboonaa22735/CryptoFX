@@ -25,6 +25,7 @@ const tradeSchema = new mongoose.Schema({
   positionSize: { type: Number },
   unrealizedPnL: { type: Number, default: 0 },
   realizedPnL: { type: Number, default: 0 },
+  profit: { type: Number, default: 0 },
   status: { type: String, enum: ['pending', 'open', 'completed', 'cancelled', 'liquidated'], default: 'completed' },
   closedAt: { type: Date },
   createdAt: { type: Date, default: Date.now }

@@ -1,19 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { FiMail, FiLock, FiUser, FiPhone, FiBox, FiArrowRight, FiShield, FiCheck, FiZap, FiEye, FiEyeOff } from 'react-icons/fi'
-import { FcGoogle } from 'react-icons/fc'
-import { IoLogoApple } from 'react-icons/io'
 import { useAuthStore, api } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import ThemeToggle from '../components/ui/ThemeToggle'
 import AnimatedBackground from '../components/animations/AnimatedBackground'
-
-const FaceIdIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-2-6c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1 1-.45 1-1zm6 0c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1 1-.45 1-1zm-3 2c0 1.1-.9 2-2 2s-2-.9-2-2h1v-1c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v1h1z"/>
-  </svg>
-)
 
 export default function Register() {
   const [name, setName] = useState('')
@@ -31,26 +23,10 @@ export default function Register() {
   const { register } = useAuthStore()
   const { initTheme, theme } = useThemeStore()
   const navigate = useNavigate()
-  const containerRef = useRef(null)
-
-  const mouseX = useMotionValue(0)
-  const mouseY = useMotionValue(0)
-
-  const springConfig = { damping: 20, stiffness: 300 }
-  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [3, -3]), springConfig)
-  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-3, 3]), springConfig)
 
   useEffect(() => {
     initTheme()
   }, [initTheme])
-
-  const handleMouseMove = (e) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (rect) {
-      mouseX.set((e.clientX - rect.left) / rect.width - 0.5)
-      mouseY.set((e.clientY - rect.top) / rect.height - 0.5)
-    }
-  }
 
   const validateForm = async () => {
     const newErrors = {}
@@ -141,83 +117,6 @@ export default function Register() {
 
   const strength = passwordStrength()
 
-  const handleGoogleRegister = async () => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const mockGoogleId = 'google_' + Date.now()
-      const mockEmail = 'user' + Date.now() + '@gmail.com'
-      const mockName = 'Google User'
-      
-      const result = await api.post('/auth/google', {
-        googleId: mockGoogleId,
-        email: mockEmail,
-        name: mockName
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
-        window.location.href = '/dashboard'
-      } else {
-        setError('Google registration failed')
-      }
-    } catch (err) {
-      setError('Google registration failed. Please try again.')
-    }
-    setIsLoading(false)
-  }
-
-  const handleAppleRegister = async () => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const mockAppleId = 'apple_' + Date.now()
-      const mockEmail = 'user' + Date.now() + '@icloud.com'
-      const mockName = 'Apple User'
-      
-      const result = await api.post('/auth/apple', {
-        appleId: mockAppleId,
-        email: mockEmail,
-        name: mockName
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
-        window.location.href = '/dashboard'
-      } else {
-        setError('Apple registration failed')
-      }
-    } catch (err) {
-      setError('Apple registration failed. Please try again.')
-    }
-    setIsLoading(false)
-  }
-
-  const handleFaceIDRegister = async () => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const mockFaceId = 'face_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-      
-      const result = await api.post('/auth/face-login', {
-        faceId: mockFaceId
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
-        window.location.href = '/dashboard'
-      } else {
-        setError('Face ID registration failed')
-      }
-    } catch (err) {
-      setError('Face ID registration failed. Please try again.')
-    }
-    setIsLoading(false)
-  }
-
   const benefits = [
     'Zero trading fees on first $10,000',
     'AI-powered trading signals',
@@ -232,7 +131,6 @@ export default function Register() {
           ? 'bg-gradient-to-br from-gray-950 via-purple-950 to-gray-950' 
           : 'bg-gradient-to-br from-gray-100 via-white to-blue-50'
       }`}
-      onMouseMove={handleMouseMove}
     >
       <AnimatedBackground />
 
@@ -241,8 +139,6 @@ export default function Register() {
       </div>
 
       <motion.div
-        ref={containerRef}
-        style={{ rotateX, rotateY, transformPerspective: 1200 }}
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -579,67 +475,6 @@ export default function Register() {
                 </span>
               </motion.button>
             </form>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.65 }}
-              className="relative my-6"
-            >
-              <div className={`absolute inset-0 flex items-center ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`} />
-              <div className="relative flex justify-center">
-                <span className={`px-4 text-sm ${theme === 'dark' ? 'bg-gray-900 text-gray-500' : 'bg-white text-gray-400'}`}>
-                  or sign up with
-                </span>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="grid grid-cols-3 gap-3"
-            >
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleGoogleRegister}
-                className={`py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <FcGoogle className="w-5 h-5" />
-                Google
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleAppleRegister}
-                className={`py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <IoLogoApple className="w-5 h-5" />
-                Apple
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleFaceIDRegister}
-                className={`py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <FaceIdIcon />
-                Face ID
-              </motion.button>
-            </motion.div>
 
             <motion.div
               initial={{ opacity: 0 }}

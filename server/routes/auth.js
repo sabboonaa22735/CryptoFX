@@ -32,7 +32,8 @@ router.post('/register', async (req, res) => {
       phone: phone || '',
       referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
       referredBy: referredBy?._id,
-      wallet: { balance: 1000 }
+      wallet: { balance: 1000 },
+      walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 }
     });
 
     await user.save();
@@ -51,6 +52,7 @@ router.post('/register', async (req, res) => {
         phone: user.phone,
         role: user.role,
         wallet: user.wallet,
+        walletStats: user.walletStats,
         avatar: user.avatar
       }
     });
@@ -110,195 +112,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         role: user.role,
         wallet: user.wallet,
-        avatar: user.avatar
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.post('/google', async (req, res) => {
-  try {
-    const { googleId, email, name, avatar } = req.body;
-    
-    if (!googleId) {
-      return res.status(400).json({ message: 'Google ID is required' });
-    }
-
-    let user = await User.findOne({ googleId });
-    
-    if (!user && email) {
-      user = await User.findOne({ email });
-      if (user) {
-        user.googleId = googleId;
-        if (avatar && !user.avatar) user.avatar = avatar;
-        await user.save();
-      }
-    }
-    
-    if (!user) {
-      user = new User({
-        email: email || `google_${googleId}@cryptofx.io`,
-        name: name || 'Google User',
-        googleId,
-        avatar: avatar || '',
-        wallet: { balance: 1000 },
-        referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
-      });
-      await user.save();
-    }
-
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    res.json({
-      success: true,
-      token,
-      refreshToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        wallet: user.wallet,
-        avatar: user.avatar
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.post('/apple', async (req, res) => {
-  try {
-    const { appleId, email, name } = req.body;
-    
-    if (!appleId) {
-      return res.status(400).json({ message: 'Apple ID is required' });
-    }
-
-    let user = await User.findOne({ appleId });
-    
-    if (!user && email) {
-      user = await User.findOne({ email });
-      if (user) {
-        user.appleId = appleId;
-        await user.save();
-      }
-    }
-    
-    if (!user) {
-      user = new User({
-        email: email || `apple_${appleId}@cryptofx.io`,
-        name: name || 'Apple User',
-        appleId,
-        wallet: { balance: 1000 },
-        referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
-      });
-      await user.save();
-    }
-
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    res.json({
-      success: true,
-      token,
-      refreshToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        wallet: user.wallet,
-        avatar: user.avatar
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.post('/face-login', async (req, res) => {
-  try {
-    const { faceId } = req.body;
-    
-    if (!faceId) {
-      return res.status(400).json({ message: 'Face ID is required' });
-    }
-
-    let user = await User.findOne({ faceId });
-    
-    if (!user) {
-      user = new User({
-        email: `face_${faceId}@cryptofx.io`,
-        name: 'Face User',
-        faceId,
-        wallet: { balance: 1000 },
-        referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
-      });
-      await user.save();
-    }
-
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    res.json({
-      success: true,
-      token,
-      refreshToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        wallet: user.wallet,
-        avatar: user.avatar
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-router.post('/face-verify', async (req, res) => {
-  try {
-    const { faceId, email, name } = req.body;
-    
-    let user = await User.findOne({ faceId });
-    if (!user) {
-      user = new User({
-        email: email || `face_${Date.now()}@cryptofx.io`,
-        name: name || 'Face User',
-        faceId,
-        wallet: { balance: 1000 }
-      });
-      await user.save();
-    }
-
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    res.json({
-      success: true,
-      token,
-      refreshToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        wallet: user.wallet,
+        walletStats: user.walletStats,
         avatar: user.avatar
       }
     });
@@ -323,6 +137,112 @@ router.post('/refresh', async (req, res) => {
     res.json({ token: newToken, refreshToken: newRefreshToken });
   } catch (error) {
     res.status(401).json({ message: 'Invalid refresh token' });
+  }
+});
+
+const crypto = require('crypto');
+
+function generateOTP() {
+  return crypto.randomInt(100000, 999999).toString();
+}
+
+async function sendOTPEmail(email, otp) {
+  console.log(`[OTP] Sending to ${email}: ${otp}`);
+  return true;
+}
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email' });
+    }
+    
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    
+    user.resetPasswordOTP = otp;
+    user.resetPasswordOTPExp = otpExpiry;
+    await user.save();
+    
+    await sendOTPEmail(email, otp);
+    
+    res.json({ success: true, message: 'OTP sent to your email!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+    
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+resetPasswordOTP');
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email' });
+    }
+    
+    if (!user.resetPasswordOTP || !user.resetPasswordOTPExp) {
+      return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (new Date() > user.resetPasswordOTPExp) {
+      return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (user.resetPasswordOTP !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    res.json({ success: true, message: 'OTP verified successfully!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+    }
+    
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+resetPasswordOTP');
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email' });
+    }
+    
+    if (!user.resetPasswordOTP || !user.resetPasswordOTPExp) {
+      return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (new Date() > user.resetPasswordOTPExp) {
+      return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (user.resetPasswordOTP !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    user.password = newPassword;
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExp = undefined;
+    await user.save();
+    
+    res.json({ success: true, message: 'Password reset successfully!' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

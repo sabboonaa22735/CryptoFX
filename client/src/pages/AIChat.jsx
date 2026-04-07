@@ -4,6 +4,7 @@ import { FiSend, FiMessageSquare, FiZap, FiTrendingUp, FiActivity, FiHeadphones,
 import { api } from '../store/authStore'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
+import { useSocket } from '../contexts/SocketContext'
 
 export default function AIChat() {
   const [messages, setMessages] = useState([
@@ -20,24 +21,23 @@ export default function AIChat() {
   const messagesEndRef = useRef(null)
   const { user } = useAuthStore()
   const { theme } = useThemeStore()
-  const socketRef = useRef(null)
+  const { socket, subscribe, unsubscribe, on } = useSocket()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isAgentTyping])
 
   useEffect(() => {
-    if (chatMode === 'support' && !socketRef.current) {
-      initializeSocket()
+    if (chatMode === 'support') {
+      subscribe(['chat'])
+      setIsConnected(true)
     }
-
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
+      if (chatMode === 'support') {
+        unsubscribe(['chat'])
       }
     }
-  }, [chatMode])
+  }, [chatMode, subscribe, unsubscribe])
 
   useEffect(() => {
     if (chatMode === 'support' && unreadMessages > 0) {
@@ -45,75 +45,64 @@ export default function AIChat() {
     }
   }, [chatMode, messages])
 
-  const initializeSocket = async () => {
-    const token = localStorage.getItem('token')
-    if (!token) return
+  useEffect(() => {
+    if (chatMode !== 'support') return
 
-    try {
-      const io = (await import('socket.io-client')).default
-      
-      socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-        auth: { token },
-        transports: ['websocket', 'polling']
-      })
-
-      socketRef.current.on('connect', () => {
-        setIsConnected(true)
-        socketRef.current.emit('join_support', { userId: user?._id })
-      })
-
-      socketRef.current.on('disconnect', () => {
-        setIsConnected(false)
-      })
-
-      socketRef.current.on('new_message', (message) => {
-        if (message.sender === 'agent' || message.sender === 'admin') {
-          const agentMessage = {
-            id: Date.now(),
-            role: 'assistant',
-            content: message.content,
-            sender: message.senderName || 'Support Agent',
-            isAgent: true,
-            timestamp: new Date()
-          }
-          setMessages(prev => [...prev, agentMessage])
-          if (chatMode !== 'support') {
-            setUnreadMessages(prev => prev + 1)
-          }
-        }
-      })
-
-      socketRef.current.on('agent_typing', () => {
-        setIsAgentTyping(true)
-      })
-
-      socketRef.current.on('agent_stop_typing', () => {
-        setIsAgentTyping(false)
-      })
-
-      socketRef.current.on('conversation_started', (data) => {
-        setConversationId(data.conversationId)
-      })
-
-      socketRef.current.on('agent_joined', (data) => {
-        setMessages(prev => [...prev, {
+    const handleNewMessage = (message) => {
+      if (message.sender === 'agent' || message.sender === 'admin') {
+        const agentMessage = {
           id: Date.now(),
-          role: 'system',
-          content: `${data.agentName} has joined the conversation`,
-          isSystem: true
-        }])
-      })
+          role: 'assistant',
+          content: message.content,
+          sender: message.senderName || 'Support Agent',
+          isAgent: true,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, agentMessage])
+      }
+    }
 
-      const previousMessages = await fetchPreviousMessages()
+    const handleAgentTyping = () => setIsAgentTyping(true)
+    const handleAgentStopTyping = () => setIsAgentTyping(false)
+    const handleConversationStarted = (data) => setConversationId(data.conversationId)
+    const handleAgentJoined = (data) => {
+      setMessages(prev => [...prev, {
+        id: Date.now(),
+        role: 'system',
+        content: `${data.agentName} has joined the conversation`,
+        isSystem: true
+      }])
+    }
+
+    const unsub1 = on('new_message', handleNewMessage)
+    const unsub2 = on('agent_typing', handleAgentTyping)
+    const unsub3 = on('agent_stop_typing', handleAgentStopTyping)
+    const unsub4 = on('conversation_started', handleConversationStarted)
+    const unsub5 = on('agent_joined', handleAgentJoined)
+
+    const fetchPreviousMessages = async () => {
+      try {
+        const { data } = await api.get('/support/messages')
+        return data.messages || []
+      } catch {
+        return []
+      }
+    }
+
+    fetchPreviousMessages().then(previousMessages => {
       if (previousMessages.length > 0) {
         setMessages(prev => [...prev, ...previousMessages])
       }
+    })
 
-    } catch (error) {
-      console.error('Socket connection failed:', error)
-      setIsConnected(false)
+    return () => {
+      unsub1()
+      unsub2()
+      unsub3()
+      unsub4()
+      unsub5()
     }
-  }
+  }, [chatMode, on])
 
   const fetchPreviousMessages = async () => {
     try {
@@ -171,8 +160,8 @@ export default function AIChat() {
     setLoading(true)
 
     try {
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('send_message', {
+      if (socket?.connected) {
+        socket.emit('send_message', {
           content: input,
           conversationId
         })

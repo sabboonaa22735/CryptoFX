@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { auth, adminAuth } = require('../middleware/auth');
 const Trade = require('../models/Trade');
+const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const { emitAdminUpdate } = require('../sockets');
 
 router.post('/buy', auth, async (req, res) => {
   try {
@@ -38,9 +40,17 @@ router.post('/buy', auth, async (req, res) => {
 
     user.wallet.balance -= totalCost;
     user.wallet.balance += totalReturn;
+    
+    if (!user.walletStats) {
+      user.walletStats = { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 };
+    }
+    user.walletStats.availableBalance = user.wallet.balance;
+    user.walletStats.totalProfit = (user.walletStats.totalProfit || 0) + profit;
+    
     await user.save();
 
     console.log('Trade executed - Balance after trade:', user.wallet.balance);
+    console.log('Trade executed - Total profit updated:', user.walletStats.totalProfit);
 
     const trade = new Trade({
       user: req.user.id,
@@ -57,6 +67,19 @@ router.post('/buy', auth, async (req, res) => {
     
     await trade.save();
 
+    const transaction = new Transaction({
+      user: req.user.id,
+      type: 'trade',
+      amount: totalReturn,
+      currency: 'USD',
+      method: 'buy',
+      status: 'completed',
+      coinSymbol: symbol,
+      tradeId: trade._id,
+      notes: `Buy ${numericAmount} ${symbol} @ $${numericPrice}`
+    });
+    await transaction.save();
+
     if (!user.portfolio.find(p => p.symbol === symbol)) {
       user.portfolio.push({ symbol, amount: numericAmount, avgPrice: numericPrice });
     } else {
@@ -67,6 +90,21 @@ router.post('/buy', auth, async (req, res) => {
     }
     await user.save();
 
+    emitAdminUpdate('trade_created', { 
+      tradeId: trade._id, 
+      userId: user._id, 
+      symbol, 
+      type: 'buy', 
+      total: totalReturn,
+      profit 
+    });
+
+    emitAdminUpdate('wallet_updated', { 
+      userId: user._id, 
+      balance: user.wallet.balance,
+      totalProfit: user.walletStats?.totalProfit || 0
+    });
+
     res.status(201).json({ trade, balance: user.wallet.balance, profit: profit, totalReturn: totalReturn });
   } catch (error) {
     console.error('Buy trade error:', error);
@@ -76,7 +114,7 @@ router.post('/buy', auth, async (req, res) => {
 
 router.post('/sell', auth, async (req, res) => {
   try {
-    const { symbol, amount, price, orderType = 'market', leverage = 1 } = req.body;
+    const { symbol, amount, price, orderType = 'market', leverage = 1, returnPercent = 1.53 } = req.body;
     
     if (!symbol || !amount || !price) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -91,6 +129,7 @@ router.post('/sell', auth, async (req, res) => {
     const numericAmount = parseFloat(amount);
     const numericPrice = parseFloat(price);
     const numericLeverage = parseFloat(leverage) || 1;
+    const numericReturnPercent = parseFloat(returnPercent) || 1.53;
     
     const portfolioItem = user.portfolio.find(p => p.symbol === symbol);
     
@@ -100,8 +139,17 @@ router.post('/sell', auth, async (req, res) => {
       });
     }
 
-    const totalValue = numericAmount * numericPrice * numericLeverage;
-    user.wallet.balance += totalValue;
+    const sellValue = numericAmount * numericPrice * numericLeverage;
+    const costBasis = portfolioItem.avgPrice * numericAmount;
+    const profitLoss = sellValue - costBasis;
+
+    user.wallet.balance += sellValue;
+    
+    if (!user.walletStats) {
+      user.walletStats = { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 };
+    }
+    user.walletStats.availableBalance = user.wallet.balance;
+    user.walletStats.totalProfit = (user.walletStats.totalProfit || 0) + profitLoss;
     
     portfolioItem.amount -= numericAmount;
     if (portfolioItem.amount === 0) {
@@ -118,11 +166,44 @@ router.post('/sell', auth, async (req, res) => {
       orderType,
       leverage: numericLeverage,
       total: numericAmount * numericPrice,
+      profit: profitLoss,
       status: 'completed'
     });
     
     await trade.save();
-    res.status(201).json({ trade, balance: user.wallet.balance });
+
+    const sellTransaction = new Transaction({
+      user: req.user.id,
+      type: 'trade',
+      amount: sellValue,
+      currency: 'USD',
+      method: 'sell',
+      status: 'completed',
+      coinSymbol: symbol,
+      tradeId: trade._id,
+      notes: `Sell ${numericAmount} ${symbol} @ $${numericPrice}`
+    });
+    await sellTransaction.save();
+
+    console.log('Sell trade executed - Profit/Loss:', profitLoss);
+    console.log('Sell trade executed - Total Profit updated:', user.walletStats.totalProfit);
+
+    emitAdminUpdate('trade_created', { 
+      tradeId: trade._id, 
+      userId: user._id, 
+      symbol, 
+      type: 'sell', 
+      total: sellValue,
+      profit: profitLoss
+    });
+
+    emitAdminUpdate('wallet_updated', { 
+      userId: user._id, 
+      balance: user.wallet.balance,
+      totalProfit: user.walletStats.totalProfit
+    });
+
+    res.status(201).json({ trade, balance: user.wallet.balance, profit: profitLoss });
   } catch (error) {
     console.error('Sell trade error:', error);
     res.status(500).json({ message: error.message });

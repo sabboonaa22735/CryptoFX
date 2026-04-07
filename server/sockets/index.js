@@ -13,6 +13,56 @@ let futuresCache = new Map();
 let commodityCache = new Map();
 let priceUpdateInterval;
 
+const cacheInvalidation = {
+  userList: true,
+  userData: new Map(),
+  dashboardStats: true,
+  transactions: true,
+  trades: true,
+  depositSettings: true,
+  tradeSettings: true,
+  walletData: true,
+  portfolio: true,
+  all: true
+};
+
+const invalidateCache = (cacheKey) => {
+  if (cacheKey === 'all') {
+    Object.keys(cacheInvalidation).forEach(key => {
+      cacheInvalidation[key] = true;
+    });
+    if (cacheKey === 'all') {
+      priceCache.clear();
+      stockCache.clear();
+      indexCache.clear();
+      futuresCache.clear();
+      commodityCache.clear();
+    }
+  } else if (cacheKey && cacheInvalidation.hasOwnProperty(cacheKey)) {
+    cacheInvalidation[cacheKey] = true;
+  }
+};
+
+const emitAdminUpdate = (eventType, data) => {
+  if (io) {
+    io.emit('admin-update', {
+      type: eventType,
+      data,
+      timestamp: Date.now()
+    });
+    io.to('admin-channel').emit('admin-update', {
+      type: eventType,
+      data,
+      timestamp: Date.now()
+    });
+    io.to('admin-updates').emit('admin-update', {
+      type: eventType,
+      data,
+      timestamp: Date.now()
+    });
+  }
+};
+
 const CRYPTO_SYMBOLS = ['btcusdt', 'ethusdt', 'bnbusdt', 'solusdt', 'xrpusdt', 'adausdt', 'dogeusdt', 'avaxusdt'];
 const FUTURES_SYMBOLS = ['btcusdt', 'ethusdt', 'bnbusdt', 'solusdt'];
 const STOCK_BASE_PRICES = {
@@ -35,7 +85,7 @@ const initializeSocket = (socketIO) => {
     socket.on('subscribe', (channels) => {
       if (Array.isArray(channels)) {
         channels.forEach(channel => {
-          if (['prices', 'crypto', 'stocks', 'indices', 'futures', 'commodities', 'trades', 'news', 'chat'].includes(channel)) {
+          if (['prices', 'crypto', 'stocks', 'indices', 'futures', 'commodities', 'trades', 'news', 'chat', 'admin-updates'].includes(channel)) {
             socket.join(channel);
           }
         });
@@ -96,6 +146,14 @@ const initializeSocket = (socketIO) => {
         ...data,
         timestamp: new Date()
       });
+    });
+
+    socket.on('subscribe-admin-updates', () => {
+      socket.join('admin-updates');
+    });
+
+    socket.on('unsubscribe-admin-updates', () => {
+      socket.leave('admin-updates');
     });
 
     socket.on('disconnect', () => {
@@ -325,5 +383,8 @@ module.exports = {
   emitToRoom,
   emitToAll,
   notifyUser,
-  stopPriceUpdates
+  stopPriceUpdates,
+  emitAdminUpdate,
+  invalidateCache,
+  cacheInvalidation
 };

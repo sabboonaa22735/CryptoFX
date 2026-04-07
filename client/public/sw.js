@@ -48,20 +48,30 @@ self.addEventListener('fetch', (event) => {
   if (!url.protocol.startsWith('http')) return;
 
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      caches.open(API_CACHE_NAME).then((cache) => {
-        return cache.match(request).then((cachedResponse) => {
-          const fetchPromise = fetch(request).then((networkResponse) => {
-            if (networkResponse.ok && CACHEABLE_API_ROUTES.some(route => url.pathname.startsWith(route))) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          }).catch(() => cachedResponse);
+    const isCacheableRoute = CACHEABLE_API_ROUTES.some(route => url.pathname.startsWith(route));
+    
+    if (isCacheableRoute) {
+      event.respondWith(
+        caches.open(API_CACHE_NAME).then((cache) => {
+          return cache.match(request).then((cachedResponse) => {
+            const fetchPromise = fetch(request).then((networkResponse) => {
+              if (networkResponse.ok) {
+                cache.put(request, networkResponse.clone());
+              }
+              return networkResponse;
+            }).catch(() => cachedResponse);
 
-          return cachedResponse || fetchPromise;
-        });
-      })
-    );
+            return cachedResponse || fetchPromise;
+          });
+        })
+      );
+    } else {
+      event.respondWith(
+        fetch(request).catch(() => {
+          return caches.match(request);
+        })
+      );
+    }
     return;
   }
 

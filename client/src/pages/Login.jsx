@@ -1,19 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { FiMail, FiLock, FiBox, FiArrowRight, FiEye, FiEyeOff, FiShield, FiZap, FiTrendingUp } from 'react-icons/fi'
-import { FcGoogle } from 'react-icons/fc'
-import { IoLogoApple } from 'react-icons/io'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import ThemeToggle from '../components/ui/ThemeToggle'
 import { api } from '../store/authStore'
-
-const FaceIdIcon = () => (
-  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-2-6c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1 1-.45 1-1zm6 0c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1 1-.45 1-1zm-3 2c0 1.1-.9 2-2 2s-2-.9-2-2h1v-1c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v1h1z"/>
-  </svg>
-)
 
 const FloatingOrb = ({ size, color, delay, duration }) => (
   <motion.div
@@ -123,24 +115,9 @@ export default function Login() {
   const navigate = useNavigate()
   const containerRef = useRef(null)
 
-  const mouseX = useMotionValue(0)
-  const mouseY = useMotionValue(0)
-
-  const springConfig = { damping: 20, stiffness: 300 }
-  const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [8, -8]), springConfig)
-  const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-8, 8]), springConfig)
-
   useEffect(() => {
     initTheme()
   }, [initTheme])
-
-  const handleMouseMove = (e) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (rect) {
-      mouseX.set((e.clientX - rect.left) / rect.width - 0.5)
-      mouseY.set((e.clientY - rect.top) / rect.height - 0.5)
-    }
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -162,90 +139,18 @@ export default function Login() {
   const handleDemoLogin = async () => {
     setError('')
     setIsLoading(true)
-    const result = await login('admin@platform.com', 'Admin@123')
-    setIsLoading(false)
-    if (result.success) {
-      window.location.href = '/dashboard'
-    } else {
-      setError(result.error || 'Demo login failed')
-    }
-  }
-
-  const handleGoogleLogin = async () => {
-    setError('')
-    setIsLoading(true)
     try {
-      const mockGoogleId = 'google_' + Date.now()
-      const mockEmail = 'user' + Date.now() + '@gmail.com'
-      const mockName = 'Google User'
-      
-      const result = await api.post('/auth/google', {
-        googleId: mockGoogleId,
-        email: mockEmail,
-        name: mockName
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
+      const result = await login(email || 'demo@cryptofx.com', 'demo123')
+      setIsLoading(false)
+      if (result.success) {
         window.location.href = '/dashboard'
       } else {
-        setError('Google login failed')
+        setError(result.error || 'Demo login not available')
       }
-    } catch (err) {
-      setError('Google login failed. Please try again.')
+    } catch {
+      setError('Demo login not available')
+      setIsLoading(false)
     }
-    setIsLoading(false)
-  }
-
-  const handleAppleLogin = async () => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const mockAppleId = 'apple_' + Date.now()
-      const mockEmail = 'user' + Date.now() + '@icloud.com'
-      const mockName = 'Apple User'
-      
-      const result = await api.post('/auth/apple', {
-        appleId: mockAppleId,
-        email: mockEmail,
-        name: mockName
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
-        window.location.href = '/dashboard'
-      } else {
-        setError('Apple login failed')
-      }
-    } catch (err) {
-      setError('Apple login failed. Please try again.')
-    }
-    setIsLoading(false)
-  }
-
-  const handleFaceIDLogin = async () => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const mockFaceId = 'face_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-      
-      const result = await api.post('/auth/face-login', {
-        faceId: mockFaceId
-      })
-      
-      if (result.data.success) {
-        localStorage.setItem('token', result.data.token)
-        localStorage.setItem('refreshToken', result.data.refreshToken)
-        window.location.href = '/dashboard'
-      } else {
-        setError('Face ID authentication failed')
-      }
-    } catch (err) {
-      setError('Face ID authentication failed. Please try again.')
-    }
-    setIsLoading(false)
   }
 
   const features = [
@@ -261,7 +166,6 @@ export default function Login() {
           ? 'bg-gradient-to-br from-gray-950 via-blue-950/50 to-purple-950' 
           : 'bg-gradient-to-br from-gray-100 via-blue-50 to-purple-50'
       }`}
-      onMouseMove={handleMouseMove}
     >
       <div className="absolute inset-0 overflow-hidden">
         <GridPattern />
@@ -292,7 +196,6 @@ export default function Login() {
 
       <motion.div
         ref={containerRef}
-        style={{ rotateX, rotateY, transformPerspective: 1200 }}
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -522,67 +425,6 @@ export default function Login() {
                 </span>
               </motion.button>
             </form>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="relative my-8"
-            >
-              <div className={`absolute inset-0 flex items-center ${theme === 'dark' ? 'border-t border-white/10' : 'border-t border-gray-200'}`} />
-              <div className="relative flex justify-center">
-                <span className={`px-4 text-sm ${theme === 'dark' ? 'bg-gray-900 text-gray-500' : 'bg-white text-gray-400'}`}>
-                  or continue with
-                </span>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="grid grid-cols-3 gap-4"
-            >
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleGoogleLogin}
-                className={`py-4 rounded-2xl font-medium text-sm transition-all flex items-center justify-center gap-3 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <FcGoogle className="w-6 h-6" />
-                Google
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleAppleLogin}
-                className={`py-4 rounded-2xl font-medium text-sm transition-all flex items-center justify-center gap-3 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <IoLogoApple className="w-6 h-6" />
-                Apple
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleFaceIDLogin}
-                className={`py-4 rounded-2xl font-medium text-sm transition-all flex items-center justify-center gap-3 backdrop-blur-md border ${
-                  theme === 'dark'
-                    ? 'bg-white/10 hover:bg-white/15 border-white/20 text-gray-300 shadow-lg shadow-black/20'
-                    : 'bg-white/70 hover:bg-white/90 border-gray-200/50 text-gray-700 shadow-lg shadow-gray-200/50'
-                }`}
-              >
-                <FaceIdIcon />
-                Face ID
-              </motion.button>
-            </motion.div>
 
             <motion.p
               initial={{ opacity: 0 }}

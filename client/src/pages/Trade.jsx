@@ -9,9 +9,8 @@ import {
   FiMinus, FiPlus, FiAlertTriangle, FiRefreshCw
 } from 'react-icons/fi'
 import { FaExchangeAlt, FaBitcoin, FaEthereum } from 'react-icons/fa'
-import { api } from '../store/authStore'
+import { api, useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
-import { useAuthStore } from '../store/authStore'
 
 const getRiskColor = (risk, theme) => {
   const colors = {
@@ -33,7 +32,7 @@ const getRiskBg = (risk) => {
 
 export default function Trade() {
   const { theme } = useThemeStore()
-  const { user, updateUser } = useAuthStore()
+  const { user, updateUser, refreshWallet } = useAuthStore()
   const navigate = useNavigate()
   const { symbol } = useParams()
   
@@ -229,6 +228,8 @@ export default function Trade() {
       })
       setShowSuccess(true)
       setAmount('')
+      
+      refreshWallet()
       window.dispatchEvent(new Event('trade-executed'))
     } catch (err) {
       console.error('Trade error:', err.response?.status, err.response?.data)

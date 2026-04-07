@@ -7,6 +7,37 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error('Only images and PDFs are allowed'));
+  }
+});
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -23,8 +54,6 @@ const superadminRoutes = require('./routes/superadmin');
 const depositsRoutes = require('./routes/deposits');
 const cryptoRoutes = require('./routes/crypto');
 const portfolioRoutes = require('./routes/portfolio');
-const { initializeSocket } = require('./sockets');
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -34,17 +63,23 @@ const io = new Server(server, {
   }
 });
 
+const { initializeSocket, emitAdminUpdate, invalidateCache } = require('./sockets');
+initializeSocket(io);
+
 app.use(helmet());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500
+  max: 50000
 });
+
+app.use('/api/auth', authRoutes);
 app.use('/api/', limiter);
 
 app.use('/api/auth', authRoutes);
@@ -67,8 +102,6 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-initializeSocket(io);
-
 const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/cryptofx';
 
@@ -84,4 +117,4 @@ mongoose.connect(MONGODB_URI)
     process.exit(1);
   });
 
-module.exports = { app, io };
+module.exports = { app, io, emitAdminUpdate, invalidateCache, upload };

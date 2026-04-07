@@ -23,6 +23,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import Landing from './pages/Landing'
 import About from './pages/About'
 import Prices from './pages/Prices'
+import { useAdminUpdates } from './hooks/useAdminUpdates'
 
 const decodeToken = (token) => {
   try {
@@ -40,12 +41,24 @@ const decodeToken = (token) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       retry: 1,
-      staleTime: 30000,
+      staleTime: 5000,
+      gcTime: 300000,
     },
   },
 })
+
+const AdminUpdatesListener = () => {
+  const { isAuthenticated } = useAuthStore()
+  useAdminUpdates({
+    enabled: isAuthenticated(),
+    onUpdate: (type, data) => {
+      console.log('[App] Admin update received:', type, data)
+    }
+  })
+  return null
+}
 
 const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore()
@@ -71,6 +84,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <AdminUpdatesListener />
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<About />} />

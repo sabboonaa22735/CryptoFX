@@ -9,7 +9,7 @@ import {
   FiBell, FiSettings, FiCpu, FiX, FiSend, FiDownload, FiRepeat, FiUpload,
   FiShoppingCart, FiShoppingBag, FiCheckCircle, FiAlertCircle, FiLoader,
   FiSearch, FiFilter, FiGrid, FiList, FiMoreVertical, FiEdit2, FiTrash2,
-  FiCreditCard, FiUser, FiLock, FiKey, FiMail
+  FiCreditCard, FiUser, FiLock, FiKey, FiMail, FiArrowUp, FiArrowDown
 } from 'react-icons/fi'
 import { FaChartLine, FaCoins, FaWallet, FaExchangeAlt, FaRobot, FaShieldAlt, FaBitcoin, FaEthereum, FaLock, FaCcVisa, FaCcMastercard, FaUniversity, FaCog, FaQrcode, FaCopy, FaRedo, FaHeadset, FaCheck, FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaCloudUploadAlt, FaImage, FaClock } from 'react-icons/fa'
 import { useAuthStore } from '../store/authStore'
@@ -17,6 +17,7 @@ import { useThemeStore } from '../store/themeStore'
 import { useTransactionStore } from '../store/transactionStore'
 import { api } from '../store/authStore'
 import { LoadingSkeleton, ErrorState, EmptyState } from '../components/ui/StatusComponents'
+import { useAdminUpdates } from '../hooks/useAdminUpdates'
 
 const DASHBOARD_TABS = [
   { id: 'overview', label: 'Overview', icon: FiBarChart2 },
@@ -785,11 +786,97 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
   const [toastMessage, setToastMessage] = useState('')
   const [toastType, setToastType] = useState('success')
   const { addTransaction } = useTransactionStore()
+  const [depositAddresses, setDepositAddresses] = useState({})
+  const [coinSettings, setCoinSettings] = useState({})
+  const [loadingAddress, setLoadingAddress] = useState(false)
 
-  const availableCoins = depositCoins && Object.keys(depositCoins).length > 0 ? depositCoins : COIN_CONFIG_DEPOSIT
+  useEffect(() => {
+    const fetchDepositData = async () => {
+      try {
+        const [addressesRes, settingsRes] = await Promise.all([
+          api.get('/deposits/deposit-addresses'),
+          api.get('/deposits/settings')
+        ])
+        
+        if (addressesRes.data && Array.isArray(addressesRes.data)) {
+          const addrMap = {}
+          addressesRes.data.forEach(addr => {
+            addrMap[addr.symbol] = addr
+          })
+          setDepositAddresses(addrMap)
+          
+          if (Object.keys(addrMap).length > 0) {
+            const firstCoin = Object.keys(addrMap)[0]
+            setSelectedCoin(firstCoin)
+          }
+        }
+        
+        if (settingsRes.data && settingsRes.data.coins) {
+          setCoinSettings(settingsRes.data.coins)
+        }
+      } catch (error) {
+        console.error('Failed to fetch deposit data:', error)
+      }
+    }
+    
+    fetchDepositData()
+  }, [])
+
+  useEffect(() => {
+    if (depositCoins && Object.keys(depositCoins).length > 0) {
+      const fetchFreshData = async () => {
+        try {
+          const [addressesRes, settingsRes] = await Promise.all([
+            api.get('/deposits/deposit-addresses'),
+            api.get('/deposits/settings')
+          ])
+          
+          if (addressesRes.data && Array.isArray(addressesRes.data)) {
+            const addrMap = {}
+            addressesRes.data.forEach(addr => {
+              addrMap[addr.symbol] = addr
+            })
+            setDepositAddresses(addrMap)
+          }
+          
+          if (settingsRes.data && settingsRes.data.coins) {
+            setCoinSettings(settingsRes.data.coins)
+          }
+        } catch (error) {
+          console.error('Failed to refresh deposit data:', error)
+        }
+      }
+      
+      fetchFreshData()
+    }
+  }, [depositCoins])
+
+  const getAvailableCoins = () => {
+    if (depositAddresses && Object.keys(depositAddresses).length > 0) {
+      const coins = {}
+      Object.entries(depositAddresses).forEach(([symbol, addr]) => {
+        coins[symbol] = {
+          name: symbol,
+          symbol: symbol,
+          color: COIN_CONFIG_DEPOSIT[symbol]?.color || 'from-gray-500 to-gray-600',
+          textColor: COIN_CONFIG_DEPOSIT[symbol]?.textColor || 'text-gray-400',
+          icon: COIN_CONFIG_DEPOSIT[symbol]?.icon || '●',
+          network: addr.network || 'MAINNET',
+          fees: coinSettings[symbol]?.networkFee ? `~${coinSettings[symbol].networkFee} ${symbol}` : COIN_CONFIG_DEPOSIT[symbol]?.fees || '',
+          minDeposit: coinSettings[symbol]?.minDeposit || addr.minDeposit || 0,
+          ...COIN_CONFIG_DEPOSIT[symbol]
+        }
+      })
+      return coins
+    }
+    return depositCoins && Object.keys(depositCoins).length > 0 ? depositCoins : COIN_CONFIG_DEPOSIT
+  }
+
+  const availableCoins = getAvailableCoins()
   const coinConfig = availableCoins[selectedCoin] || Object.values(availableCoins)[0] || COIN_CONFIG_DEPOSIT.BTC
   const expiresAt = new Date().getTime() + 30 * 60 * 1000
-  const depositAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'
+  const currentAddress = depositAddresses[selectedCoin]?.address || ''
+  const currentMemo = depositAddresses[selectedCoin]?.memo || ''
 
   const notify = (message, type = 'success') => {
     setToastMessage(message)
@@ -815,28 +902,60 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
 
     setLoading(true)
     setTransactionStatus('pending')
-    notify('Deposit submitted! Waiting for admin approval...', 'info')
+    notify('Uploading proof of payment...', 'info')
     
     try {
+      let proofUrl = null
+      let proofFilename = uploadedFile?.name || 'proof-of-payment'
+      
+      if (uploadedFile && uploadedFile instanceof File) {
+        const formData = new FormData()
+        formData.append('proofFilename', uploadedFile.name)
+        formData.append('file', uploadedFile)
+        
+        const uploadRes = await fetch('/api/wallet/upload-proof', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: formData
+        })
+        
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          proofUrl = uploadData.proofUrl
+          proofFilename = uploadData.filename
+        }
+      }
+      
       const res = await api.post('/wallet/deposit', {
         amount: parseFloat(amount),
         currency: 'USD',
         method: 'crypto',
-        walletAddress: depositAddress,
-        transactionHash: 'demo-tx-' + Date.now()
+        walletAddress: currentAddress,
+        coinSymbol: selectedCoin,
+        transactionHash: 'demo-tx-' + Date.now(),
+        proofOfPaymentUrl: proofUrl,
+        proofFilename: proofFilename
       })
       
-      if (res.data) {
+      if (res.data?.transaction?._id) {
+        console.log('[Dashboard] Deposit created with ID:', res.data.transaction._id)
         addTransaction({
+          _id: res.data.transaction._id,
           type: 'deposit',
           amount: parseFloat(amount),
           symbol: selectedCoin,
           method: 'Crypto Wallet',
           status: 'pending',
         })
+        notify('Deposit submitted! Waiting for admin approval...', 'success')
+      } else {
+        notify('Deposit submitted! Waiting for admin approval...', 'success')
       }
     } catch (error) {
       console.log('API call failed, using demo mode')
+      notify('Deposit submitted! Waiting for admin approval...', 'info')
     }
     
     await new Promise(resolve => setTimeout(resolve, 1500))
@@ -991,11 +1110,16 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
                   </div>
                   <div className={`p-3 rounded-xl ${theme === 'dark' ? 'bg-black/20' : 'bg-white border border-gray-200'}`}>
                     <p className={`text-xs font-mono break-all ${theme === 'dark' ? 'text-white/80' : 'text-gray-700'}`}>
-                      {depositAddress}
+                      {currentAddress || 'Loading...'}
                     </p>
+                    {currentMemo && (
+                      <p className={`text-xs font-mono break-all mt-1 ${theme === 'dark' ? 'text-white/60' : 'text-gray-500'}`}>
+                        Memo: {currentMemo}
+                      </p>
+                    )}
                   </div>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(depositAddress); notify('Address copied!') }}
+                    onClick={() => { navigator.clipboard.writeText(currentAddress); notify('Address copied!') }}
                     className="mt-3 text-sm text-yellow-500 font-medium"
                   >
                     Copy Address
@@ -1004,11 +1128,11 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
               ) : (
                 <div className={`flex items-center gap-2 p-3 rounded-xl ${theme === 'dark' ? 'bg-black/20' : 'bg-white border border-gray-200'}`}>
                   <code className={`flex-1 font-mono text-sm break-all ${theme === 'dark' ? 'text-white/80' : 'text-gray-700'}`}>
-                    {depositAddress}
+                    {currentAddress || 'Loading...'}
                   </code>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => { navigator.clipboard.writeText(depositAddress); notify('Address copied!') }}
+                    onClick={() => { navigator.clipboard.writeText(currentAddress); notify('Address copied!') }}
                     className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-white/10 text-white/60' : 'bg-gray-200 text-gray-600'}`}
                   >
                     <FaCopy className="w-4 h-4" />
@@ -2544,7 +2668,36 @@ const PortfolioChart = ({ theme }) => {
   )
 }
 
-const RecentActivity = ({ trades, theme }) => {
+const RecentActivity = ({ recentTransactions, theme }) => {
+  const getTransactionIcon = (type) => {
+    switch (type) {
+      case 'deposit': return { icon: FiArrowDown, class: 'from-emerald-500/20 to-cyan-500/20', color: 'text-emerald-400' }
+      case 'withdrawal': return { icon: FiArrowUp, class: 'from-red-500/20 to-rose-500/20', color: 'text-red-400' }
+      case 'transfer': return { icon: FiRepeat, class: 'from-blue-500/20 to-indigo-500/20', color: 'text-blue-400' }
+      case 'buy': return { icon: FiTrendingUp, class: 'from-emerald-500/20 to-cyan-500/20', color: 'text-emerald-400' }
+      case 'sell': return { icon: FiTrendingDown, class: 'from-red-500/20 to-rose-500/20', color: 'text-red-400' }
+      default: return { icon: FiDollarSign, class: 'from-amber-500/20 to-orange-500/20', color: 'text-amber-400' }
+    }
+  }
+
+  const getTimeAgo = (date) => {
+    const now = new Date()
+    const then = new Date(date)
+    const diffMs = now - then
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins} min ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+  }
+
+  const formatAmount = (amount, currency = 'USD') => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -2570,70 +2723,58 @@ const RecentActivity = ({ trades, theme }) => {
             </p>
           </div>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`px-4 py-2 rounded-xl text-sm font-medium ${
-            theme === 'dark'
-              ? 'bg-white/5 hover:bg-white/10 text-gray-300'
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-          }`}
-        >
-          View All
-        </motion.button>
       </div>
       
       <div className="space-y-3">
-        {[
-          { type: 'buy', coin: 'BTC', amount: '0.025', price: '$1,250', time: '2 min ago', positive: true },
-          { type: 'sell', coin: 'ETH', amount: '1.5', price: '$4,875', time: '15 min ago', positive: false },
-          { type: 'buy', coin: 'SOL', amount: '25', price: '$6,250', time: '1 hour ago', positive: true },
-        ].map((trade, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.9 + i * 0.1 }}
-            whileHover={{ x: 5 }}
-            className={`flex items-center justify-between p-4 rounded-2xl ${
-              theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'
-            } transition-all cursor-pointer`}
-          >
-            <div className="flex items-center gap-3">
+        {recentTransactions.length === 0 ? (
+          <p className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+            No transactions yet
+          </p>
+        ) : (
+          recentTransactions.map((tx, i) => {
+            const { icon: Icon, class: iconClass, color } = getTransactionIcon(tx.type)
+            const isPositive = tx.type === 'deposit' || tx.type === 'buy'
+            return (
               <motion.div
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.5 }}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  trade.type === 'buy' 
-                    ? 'bg-gradient-to-br from-emerald-500/20 to-cyan-500/20' 
-                    : 'bg-gradient-to-br from-red-500/20 to-rose-500/20'
-                }`}
+                key={tx._id || i}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.9 + i * 0.1 }}
+                whileHover={{ x: 5 }}
+                className={`flex items-center justify-between p-4 rounded-2xl ${
+                  theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'
+                } transition-all cursor-pointer`}
               >
-                {trade.type === 'buy' ? (
-                  <FiTrendingUp className={`w-5 h-5 ${trade.positive ? 'text-emerald-400' : 'text-emerald-400'}`} />
-                ) : (
-                  <FiTrendingDown className="w-5 h-5 text-red-400" />
-                )}
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.5 }}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${iconClass}`}
+                  >
+                    <Icon className={`w-5 h-5 ${color}`} />
+                  </motion.div>
+                  <div>
+                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                      {tx.coinSymbol ? ` ${tx.coinSymbol}` : ''}
+                    </p>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {tx.status === 'pending' ? 'Processing' : tx.status}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-sm font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isPositive ? '+' : '-'}{formatAmount(tx.amount)}
+                  </p>
+                  <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {getTimeAgo(tx.createdAt)}
+                  </p>
+                </div>
               </motion.div>
-              <div>
-                <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  {trade.type === 'buy' ? 'Bought' : 'Sold'} {trade.coin}
-                </p>
-                <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {trade.amount} @ {trade.price}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className={`text-sm font-bold ${trade.positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                {trade.positive ? '+$125.50' : '-$50.00'}
-              </p>
-              <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                {trade.time}
-              </p>
-            </div>
-          </motion.div>
-        ))}
+            )
+          })
+        )}
       </div>
     </motion.div>
   )
@@ -3304,7 +3445,7 @@ const SettingsPanel = ({ isOpen, onClose, theme }) => {
 }
 
 export default function Dashboard() {
-  const { user } = useAuthStore()
+  const { user, refreshWallet } = useAuthStore()
   const { theme } = useThemeStore()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab')
@@ -3314,11 +3455,46 @@ export default function Dashboard() {
   const [globalStats, setGlobalStats] = useState({ availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 })
   const [trades, setTrades] = useState([])
   const [marketData, setMarketData] = useState([])
+  const [recentTransactions, setRecentTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [depositCoins, setDepositCoins] = useState({})
+
+  useAdminUpdates({
+    specificEvents: [
+      'wallet_updated', 'wallet_stats_updated', 'deposit_approved', 'transaction_approved', 'all_balances_reset',
+      'trade_created', 'trade_updated', 'trade_deleted', 'portfolio_stats_updated',
+      'user_updated', 'global_wallet_stats_updated'
+    ],
+    onUpdate: async (type, data) => {
+      console.log('[Dashboard] Received update:', type, data)
+      await fetchData()
+      await refreshWallet()
+    }
+  })
+
+  const fetchDepositData = async () => {
+    try {
+      const [addressesRes, settingsRes] = await Promise.all([
+        api.get('/deposits/deposit-addresses').catch(() => ({ data: [] })),
+        api.get('/deposits/settings').catch(() => ({ data: {} }))
+      ])
+      
+      if (addressesRes.data && Array.isArray(addressesRes.data)) {
+        const addrMap = {}
+        addressesRes.data.forEach(addr => {
+          addrMap[addr.symbol] = addr
+        })
+        setDepositCoins(addrMap)
+      } else if (settingsRes.data?.coins) {
+        setDepositCoins(settingsRes.data.coins)
+      }
+    } catch (error) {
+      console.log('Failed to fetch deposit data')
+    }
+  }
 
   const dynamicAssets = CRYPTO_ASSETS.map((asset, index) => {
     if (asset.symbol === 'USDT') {
@@ -3343,17 +3519,46 @@ export default function Dashboard() {
     setLoading(true)
     setError(null)
     try {
-      const [userBalanceRes, globalStatsRes, tradesRes, marketsRes] = await Promise.all([
-        api.get('/wallet/balance').catch(() => ({ data: { balance: 10000, deposits: 0, withdrawals: 0 } })),
-        api.get('/wallet/global-stats').catch(() => ({ data: { availableBalance: 125000, totalDeposit: 500000, totalWithdraw: 375000, totalProfit: 0 } })),
+      const [userBalanceRes, globalStatsRes, tradesRes, marketsRes, transactionsRes] = await Promise.all([
+        api.get('/wallet/balance').catch(() => ({ data: { balance: 0, deposits: 0, withdrawals: 0 } })),
+        api.get('/wallet/global-stats').catch(() => ({ data: { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 } })),
         api.get('/trades?limit=5').catch(() => ({ data: { trades: [] } })),
-        api.get('/markets/coins?per_page=8').catch(() => ({ data: [] }))
+        api.get('/markets/coins?per_page=8').catch(() => ({ data: [] })),
+        api.get('/wallet/transactions?limit=5').catch(() => ({ data: { transactions: [] } }))
       ])
-      setWallet(userBalanceRes.data || { balance: 10000, deposits: 0, withdrawals: 0 })
-      setPortfolioStats({ totalBalance: 1621000, totalPL: 45250, totalVolume: 8950000, totalTrades: 12450 })
-      setGlobalStats(globalStatsRes.data || { availableBalance: 125000, totalDeposit: 500000, totalWithdraw: 375000, totalProfit: 0 })
+      
+      const statsData = globalStatsRes.data || { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 }
+      
+      setWallet(userBalanceRes.data || { balance: 0, deposits: 0, withdrawals: 0 })
+      setGlobalStats(statsData)
       setTrades(tradesRes.data?.trades || [])
       setMarketData(marketsRes.data || [])
+      setRecentTransactions(transactionsRes.data?.transactions || [])
+      
+      useAuthStore.setState((state) => ({
+        user: {
+          ...state.user,
+          wallet: {
+            balance: statsData.availableBalance || statsData.balance || userBalanceRes.data?.balance || 0,
+            deposits: statsData.totalDeposit || 0,
+            withdrawals: statsData.totalWithdraw || 0,
+            currency: 'USD'
+          },
+          walletStats: {
+            availableBalance: statsData.availableBalance || 0,
+            totalDeposit: statsData.totalDeposit || 0,
+            totalWithdraw: statsData.totalWithdraw || 0,
+            totalProfit: statsData.totalProfit || 0
+          }
+        }
+      }))
+      
+      setPortfolioStats({ 
+        totalBalance: statsData.availableBalance || statsData.balance || 0, 
+        totalPL: statsData.totalProfit || 0, 
+        totalVolume: 0, 
+        totalTrades: 0 
+      })
     } catch (err) {
       console.error('Failed to fetch data:', err)
       setError('Failed to load dashboard data')
@@ -3362,10 +3567,14 @@ export default function Dashboard() {
     }
   }
 
+  const userWalletStats = user?.walletStats || {}
+  const totalPL = userWalletStats.totalProfit ?? portfolioStats?.totalPL ?? 0
+  const totalPLIsNegative = totalPL < 0
+  
   const stats = [
     { 
       label: 'Portfolio Balance', 
-      value: `$${(portfolioStats?.totalBalance || 10000).toLocaleString()}`, 
+      value: `$${(portfolioStats?.totalBalance || 0).toLocaleString()}`, 
       icon: FiDollarSign, 
       color: 'from-emerald-400 to-cyan-500',
       shadow: 'rgba(16, 185, 129, 0.4)',
@@ -3374,12 +3583,12 @@ export default function Dashboard() {
     },
     { 
       label: 'Total P/L', 
-      value: `$${(portfolioStats?.totalPL || 0).toLocaleString()}`, 
+      value: `${totalPLIsNegative ? '-' : ''}$${Math.abs(totalPL).toLocaleString()}`, 
       icon: FiTrendingUp, 
-      color: 'from-blue-400 to-indigo-500',
-      shadow: 'rgba(59, 130, 246, 0.4)',
-      change: portfolioStats?.totalPL >= 0 ? '+8.3%' : '-8.3%',
-      changeType: portfolioStats?.totalPL >= 0 ? 'positive' : 'negative'
+      color: totalPLIsNegative ? 'from-red-400 to-rose-500' : 'from-blue-400 to-indigo-500',
+      shadow: totalPLIsNegative ? 'rgba(244, 63, 94, 0.4)' : 'rgba(59, 130, 246, 0.4)',
+      change: totalPL >= 0 ? '+8.3%' : '-8.3%',
+      changeType: totalPL >= 0 ? 'positive' : 'negative'
     },
     { 
       label: 'Total Volume', 
@@ -3666,7 +3875,7 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <RecentActivity trades={trades} theme={theme} />
+                <RecentActivity recentTransactions={recentTransactions} theme={theme} />
                 <SentimentIndicator theme={theme} />
               </div>
 

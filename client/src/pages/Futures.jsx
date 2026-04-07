@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FaSearch, FaChartLine, FaArrowUp, FaArrowDown, FaSync, FaInfoCircle, FaPercentage } from 'react-icons/fa'
-import { io } from 'socket.io-client'
+import { useSocket } from '../contexts/SocketContext'
 
 const Futures = () => {
   const [futures, setFutures] = useState([])
@@ -39,23 +39,26 @@ const Futures = () => {
     }
   }, [futuresData, categoriesData])
 
+  const { subscribe, unsubscribe, on } = useSocket()
+
   useEffect(() => {
-    const socket = io()
-    socket.emit('subscribe', ['futures'])
+    subscribe(['futures'])
     
-    socket.on('futures-update', (data) => {
+    const handleUpdate = (data) => {
       const dataMap = {}
       data.forEach(item => {
         dataMap[item.symbol] = item
       })
       setRealtimeData(prev => ({ ...prev, ...dataMap }))
-    })
+    }
+
+    const unsubscribeHandler = on('futures-update', handleUpdate)
 
     return () => {
-      socket.emit('unsubscribe', ['futures'])
-      socket.disconnect()
+      unsubscribe(['futures'])
+      unsubscribeHandler()
     }
-  }, [])
+  }, [subscribe, unsubscribe, on])
 
   const filteredFutures = futures.filter(future => {
     const searchLower = searchTerm.toLowerCase()

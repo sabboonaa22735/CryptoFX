@@ -71,12 +71,39 @@ export const useAuthStore = create(
           const { data } = await api.post('/auth/login', { email, password })
           localStorage.setItem('token', data.token)
           localStorage.setItem('refreshToken', data.refreshToken)
+          
           set({ 
             user: data.user, 
             token: data.token, 
             refreshToken: data.refreshToken,
             isLoading: false 
           })
+          
+          try {
+            const walletRes = await api.get('/wallet/global-stats')
+            if (walletRes.data) {
+              set((state) => ({
+                user: {
+                  ...state.user,
+                  wallet: {
+                    balance: walletRes.data.availableBalance || walletRes.data.balance || state.user?.wallet?.balance || 0,
+                    deposits: walletRes.data.totalDeposit || state.user?.wallet?.deposits || 0,
+                    withdrawals: walletRes.data.totalWithdraw || state.user?.wallet?.withdrawals || 0,
+                    currency: 'USD'
+                  },
+                  walletStats: {
+                    availableBalance: walletRes.data.availableBalance || 0,
+                    totalDeposit: walletRes.data.totalDeposit || 0,
+                    totalWithdraw: walletRes.data.totalWithdraw || 0,
+                    totalProfit: walletRes.data.totalProfit || 0
+                  }
+                }
+              }))
+            }
+          } catch (walletErr) {
+            console.warn('Failed to fetch wallet data on login:', walletErr)
+          }
+          
           return { success: true }
         } catch (error) {
           const message = error.response?.data?.message || 'Invalid credentials'
@@ -124,6 +151,34 @@ export const useAuthStore = create(
 
       updateUser: (updates) => {
         set((state) => ({ user: { ...state.user, ...updates } }))
+      },
+
+      refreshWallet: async () => {
+        try {
+          const walletRes = await api.get('/wallet/global-stats')
+          if (walletRes.data) {
+            console.log('[AuthStore] Refreshing wallet with:', walletRes.data)
+            set((state) => ({
+              user: {
+                ...state.user,
+                wallet: {
+                  balance: walletRes.data.availableBalance || walletRes.data.balance || 0,
+                  deposits: walletRes.data.totalDeposit || 0,
+                  withdrawals: walletRes.data.totalWithdraw || 0,
+                  currency: 'USD'
+                },
+                walletStats: {
+                  availableBalance: walletRes.data.availableBalance || 0,
+                  totalDeposit: walletRes.data.totalDeposit || 0,
+                  totalWithdraw: walletRes.data.totalWithdraw || 0,
+                  totalProfit: walletRes.data.totalProfit || 0
+                }
+              }
+            }))
+          }
+        } catch (error) {
+          console.error('Failed to refresh wallet:', error)
+        }
       },
 
       clearError: () => set({ error: null })

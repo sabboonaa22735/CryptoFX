@@ -8,7 +8,9 @@ const Transaction = require('../models/Transaction');
 const Ticket = require('../models/Ticket');
 const DepositAddress = require('../models/DepositAddress');
 const TradeSettings = require('../models/TradeSettings');
+const DepositSettings = require('../models/DepositSettings');
 const axios = require('axios');
+const { emitAdminUpdate, invalidateCache } = require('../sockets');
 
 router.post('/login', superAdminLogin);
 
@@ -189,6 +191,8 @@ router.post('/users/reset-balances', async (req, res) => {
         }
       }
     );
+    invalidateCache('all');
+    emitAdminUpdate('all_balances_reset', {});
     res.json({ message: 'All user balances reset to 0 successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -272,6 +276,12 @@ router.put('/users/:id', async (req, res) => {
     userResponse.wallet = user.wallet;
     userResponse.walletStats = user.walletStats;
     
+    invalidateCache('userList');
+    invalidateCache('userData');
+    invalidateCache('dashboardStats');
+    invalidateCache('walletData');
+    emitAdminUpdate('user_updated', { userId: user._id, user: userResponse });
+    
     res.json({ message: 'User updated successfully', user: userResponse });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -288,6 +298,11 @@ router.delete('/users/:id', async (req, res) => {
     
     await Trade.deleteMany({ user: req.params.id });
     await Transaction.deleteMany({ user: req.params.id });
+    
+    invalidateCache('userList');
+    invalidateCache('userData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('user_deleted', { userId: req.params.id });
     
     res.json({ message: 'User and related data deleted successfully' });
   } catch (error) {
@@ -318,6 +333,10 @@ router.put('/users/:id/wallet', async (req, res) => {
       if (balance !== undefined) globalStats.availableBalance = balance;
       await globalStats.save();
     }
+    
+    invalidateCache('walletData');
+    invalidateCache('userData');
+    emitAdminUpdate('wallet_updated', { userId: req.params.id, wallet: user.wallet });
     
     res.json({ message: 'Wallet updated successfully', wallet: user.wallet });
   } catch (error) {
@@ -417,6 +436,10 @@ router.put('/wallet-stats', async (req, res) => {
       }
       await stats.save();
       
+      invalidateCache('walletData');
+      invalidateCache('userData');
+      emitAdminUpdate('wallet_stats_updated', { userId, availableBalance, totalDeposit, totalWithdraw, totalProfit });
+      
       return res.json({ 
         message: 'User wallet stats updated successfully',
         walletStats: user.walletStats,
@@ -441,6 +464,10 @@ router.put('/wallet-stats', async (req, res) => {
     }
     
     await stats.save();
+    
+    invalidateCache('walletData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('global_wallet_stats_updated', { availableBalance, totalDeposit, totalWithdraw, totalProfit });
     
     res.json({ 
       message: 'Global wallet stats updated successfully',
@@ -519,6 +546,10 @@ router.put('/portfolio-stats', async (req, res) => {
     
     await stats.save();
     
+    invalidateCache('portfolio');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('portfolio_stats_updated', { userId, totalBalance, totalPL, totalVolume, totalTrades });
+    
     res.json({ 
       message: 'Portfolio stats updated successfully',
       portfolioStats: {
@@ -596,6 +627,11 @@ router.post('/trades', async (req, res) => {
     
     await trade.save();
     
+    invalidateCache('trades');
+    invalidateCache('walletData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('trade_created', { tradeId: trade._id, userId, symbol, type, total });
+    
     res.json({ message: 'Trade executed successfully', trade });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -616,6 +652,10 @@ router.put('/trades/:id', async (req, res) => {
     
     await trade.save();
     
+    invalidateCache('trades');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('trade_updated', { tradeId: req.params.id, status });
+    
     res.json({ message: 'Trade updated successfully', trade });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -629,6 +669,10 @@ router.delete('/trades/:id', async (req, res) => {
     if (!trade) {
       return res.status(404).json({ message: 'Trade not found' });
     }
+    
+    invalidateCache('trades');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('trade_deleted', { tradeId: req.params.id });
     
     res.json({ message: 'Trade deleted successfully' });
   } catch (error) {
@@ -697,6 +741,7 @@ router.post('/transactions', async (req, res) => {
 
 router.get('/deposits', async (req, res) => {
   try {
+    console.log('GET /superadmin/deposits called');
     const { page = 1, limit = 50, status } = req.query;
     const query = { type: 'deposit' };
     
@@ -718,6 +763,7 @@ router.get('/deposits', async (req, res) => {
       }}
     ]);
     
+    console.log('Returning deposits:', deposits.length, 'total:', total);
     res.json({
       deposits,
       totalPages: Math.ceil(total / limit),
@@ -752,6 +798,11 @@ router.put('/deposits/:id/approve', async (req, res) => {
     transaction.status = 'completed';
     await transaction.save();
     
+    invalidateCache('transactions');
+    invalidateCache('walletData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('deposit_approved', { transactionId: req.params.id, userId: transaction.user, amount: transaction.amount });
+    
     res.json({ message: 'Deposit approved successfully', transaction });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -771,6 +822,10 @@ router.put('/deposits/:id/reject', async (req, res) => {
     
     transaction.status = 'rejected';
     await transaction.save();
+    
+    invalidateCache('transactions');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('deposit_rejected', { transactionId: req.params.id });
     
     res.json({ message: 'Deposit rejected', transaction });
   } catch (error) {
@@ -800,6 +855,11 @@ router.put('/transactions/:id', async (req, res) => {
     }
     
     await transaction.save();
+    
+    invalidateCache('transactions');
+    invalidateCache('walletData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('transaction_updated', { transactionId: req.params.id, status: transaction.status });
     
     res.json({ message: 'Transaction updated successfully', transaction });
   } catch (error) {
@@ -831,6 +891,11 @@ router.put('/transactions/:id/approve', async (req, res) => {
     transaction.status = 'completed';
     await transaction.save();
     
+    invalidateCache('transactions');
+    invalidateCache('walletData');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('transaction_approved', { transactionId: req.params.id, userId: transaction.user?._id, amount: transaction.amount });
+    
     res.json({ 
       message: 'Transaction approved successfully', 
       transaction,
@@ -858,6 +923,10 @@ router.put('/transactions/:id/reject', async (req, res) => {
     transaction.status = 'rejected';
     transaction.reference = reason || 'Rejected by admin';
     await transaction.save();
+    
+    invalidateCache('transactions');
+    invalidateCache('dashboardStats');
+    emitAdminUpdate('transaction_rejected', { transactionId: req.params.id });
     
     res.json({ 
       message: 'Transaction rejected', 
@@ -1121,6 +1190,9 @@ router.put('/trade-settings', async (req, res) => {
     
     await settings.save();
     
+    invalidateCache('tradeSettings');
+    emitAdminUpdate('trade_settings_updated', settings);
+    
     res.json({ message: 'Trade settings updated successfully', settings });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1151,7 +1223,131 @@ router.post('/trade-settings/durations', async (req, res) => {
     
     await settings.save();
     
+    invalidateCache('tradeSettings');
+    emitAdminUpdate('trade_durations_updated', { durations: settings.durations });
+    
     res.json({ message: 'Durations updated successfully', durations: settings.durations });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/deposit-settings', async (req, res) => {
+  try {
+    const settings = await DepositSettings.getSettings();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/deposit-settings', async (req, res) => {
+  try {
+    const { isEnabled, maintenanceMode, maintenanceMessage, general, fees, coins, ui, messages } = req.body;
+    
+    let settings = await DepositSettings.findOne({ key: 'deposit_settings' });
+    
+    if (!settings) {
+      settings = new DepositSettings({ key: 'deposit_settings' });
+    }
+    
+    if (isEnabled !== undefined) settings.isEnabled = isEnabled;
+    if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+    if (maintenanceMessage !== undefined) settings.maintenanceMessage = maintenanceMessage;
+    
+    if (general) {
+      settings.general = { ...settings.general.toObject ? settings.general.toObject() : settings.general, ...general };
+    }
+    
+    if (fees) {
+      settings.fees = { ...settings.fees.toObject ? settings.fees.toObject() : settings.fees, ...fees };
+    }
+    
+    if (coins) {
+      const currentCoins = settings.coins.toObject ? settings.coins.toObject() : settings.coins;
+      for (const [symbol, coinSettings] of Object.entries(coins)) {
+        if (currentCoins[symbol]) {
+          settings.coins[symbol] = { ...currentCoins[symbol], ...coinSettings };
+        } else {
+          settings.coins[symbol] = coinSettings;
+        }
+      }
+    }
+    
+    if (ui) {
+      settings.ui = { ...settings.ui.toObject ? settings.ui.toObject() : settings.ui, ...ui };
+    }
+    
+    if (messages) {
+      settings.messages = { ...settings.messages.toObject ? settings.messages.toObject() : settings.messages, ...messages };
+    }
+    
+    settings.updatedAt = new Date();
+    await settings.save();
+    
+    invalidateCache('depositSettings');
+    emitAdminUpdate('deposit_settings_updated', settings);
+    
+    res.json({ message: 'Deposit settings updated successfully', settings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/deposit-settings/coins/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { isEnabled, minDeposit, maxDeposit, networkFee, confirmations, customLabel, customDescription } = req.body;
+    
+    let settings = await DepositSettings.findOne({ key: 'deposit_settings' });
+    if (!settings) {
+      settings = new DepositSettings({ key: 'deposit_settings' });
+    }
+    
+    const upperSymbol = symbol.toUpperCase();
+    
+    if (!settings.coins[upperSymbol]) {
+      settings.coins[upperSymbol] = {
+        isEnabled: true,
+        minDeposit: 0,
+        maxDeposit: null,
+        networkFee: 0,
+        confirmations: 1,
+        customLabel: null,
+        customDescription: null,
+      };
+    }
+    
+    if (isEnabled !== undefined) settings.coins[upperSymbol].isEnabled = isEnabled;
+    if (minDeposit !== undefined) settings.coins[upperSymbol].minDeposit = minDeposit;
+    if (maxDeposit !== undefined) settings.coins[upperSymbol].maxDeposit = maxDeposit;
+    if (networkFee !== undefined) settings.coins[upperSymbol].networkFee = networkFee;
+    if (confirmations !== undefined) settings.coins[upperSymbol].confirmations = confirmations;
+    if (customLabel !== undefined) settings.coins[upperSymbol].customLabel = customLabel;
+    if (customDescription !== undefined) settings.coins[upperSymbol].customDescription = customDescription;
+    
+    settings.updatedAt = new Date();
+    await settings.save();
+    
+    invalidateCache('depositSettings');
+    emitAdminUpdate('deposit_coin_settings_updated', { symbol: upperSymbol, coinSettings: settings.coins[upperSymbol] });
+    
+    res.json({ message: `${upperSymbol} settings updated successfully`, coinSettings: settings.coins[upperSymbol] });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/deposit-settings/reset', async (req, res) => {
+  try {
+    await DepositSettings.deleteOne({ key: 'deposit_settings' });
+    const settings = new DepositSettings({ key: 'deposit_settings' });
+    await settings.save();
+    
+    invalidateCache('depositSettings');
+    emitAdminUpdate('deposit_settings_reset', {});
+    
+    res.json({ message: 'Deposit settings reset to defaults', settings });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

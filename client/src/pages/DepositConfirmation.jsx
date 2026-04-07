@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fi'
 import { useThemeStore } from '../store/themeStore'
 import { QRCodeSVG } from 'qrcode.react'
+import { api } from '../store/authStore'
 
 const COIN_CONFIG = {
   BTC: { 
@@ -705,17 +706,60 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
   const [isExpired, setIsExpired] = useState(false)
   const [uploadedFile, setUploadedFile] = useState(null)
   const [transactionStatus, setTransactionStatus] = useState('pending')
+  const [depositSettings, setDepositSettings] = useState(null)
+  const [currentAddress, setCurrentAddress] = useState('')
+  const [currentMemo, setCurrentMemo] = useState('')
 
   useEffect(() => {
     initTheme()
+    fetchDepositSettings()
   }, [initTheme])
 
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const upperCoin = coin.toUpperCase()
+        const res = await api.get(`/api/deposits/deposit-addresses/${upperCoin}`).catch(() => ({ data: null }))
+        if (res.data) {
+          setCurrentAddress(res.data.address || '')
+          setCurrentMemo(res.data.memo || '')
+        } else {
+          const allRes = await api.get('/api/deposits/deposit-addresses').catch(() => ({ data: null }))
+          if (allRes.data && Array.isArray(allRes.data)) {
+            const addr = allRes.data.find(a => a.symbol === upperCoin)
+            if (addr) {
+              setCurrentAddress(addr.address || '')
+              setCurrentMemo(addr.memo || '')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch deposit address:', error)
+      }
+    }
+    if (coin) {
+      fetchAddress()
+    }
+  }, [coin])
+
+  const fetchDepositSettings = async () => {
+    try {
+      const res = await api.get('/api/deposits/settings').catch(() => ({ data: null }))
+      if (res.data) {
+        setDepositSettings(res.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch deposit settings:', error)
+    }
+  }
+
   const config = COIN_CONFIG[coin] || COIN_CONFIG.BTC
-  const expiresAt = new Date().getTime() + 30 * 60 * 1000
+  const timeoutMinutes = depositSettings?.general?.paymentTimeoutMinutes || 30
+  const expiresAt = new Date().getTime() + timeoutMinutes * 60 * 1000
 
   const depositData = {
     amount: '0.025',
-    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+    address: currentAddress,
     rate: 67500,
   }
 
@@ -852,7 +896,7 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
                 animate={{ opacity: 1, y: 0 }}
                 className={`text-2xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
               >
-                Confirm {config.name} ({config.symbol}) Payment
+                {depositSettings?.messages?.welcomeTitle?.replace('{amount}', depositData.amount).replace('{symbol}', config.symbol) || `Confirm ${config.name} (${config.symbol}) Payment`}
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
@@ -860,11 +904,11 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
                 transition={{ delay: 0.1 }}
                 className={`text-sm ${theme === 'dark' ? 'text-white/60' : 'text-gray-500'}`}
               >
-                Send the exact amount to complete your deposit
+                {depositSettings?.messages?.welcomeSubtitle || 'Send the exact amount to complete your deposit'}
               </motion.p>
             </div>
 
-            {!isExpired && (
+            {!isExpired && depositSettings?.ui?.showTimer !== false && (
               <CountdownTimer 
                 expiresAt={expiresAt} 
                 onExpire={handleExpire}
@@ -881,7 +925,7 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
             )}
 
             <WarningAlert 
-              message="Transactions may take 10-30 minutes to confirm depending on network congestion."
+              message={depositSettings?.messages?.warningText?.replace('{symbol}', config.symbol) || 'Transactions may take 10-30 minutes to confirm depending on network congestion.'}
               type="warning"
               theme={theme}
             />
@@ -956,12 +1000,12 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
               ) : transactionStatus === 'pending' ? (
                 <>
                   <FaClock className="w-6 h-6 animate-pulse" />
-                  Waiting for Approval
+                  {depositSettings?.messages?.pendingTitle || 'Waiting for Approval'}
                 </>
               ) : (
                 <>
                   <FaWallet className="w-6 h-6" />
-                  Confirm Deposit
+                  {depositSettings?.ui?.confirmButtonText || 'Confirm Deposit'}
                 </>
               )}
             </motion.button>

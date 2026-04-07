@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const { auth, adminAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const path = require('path');
 
 const GlobalStatsSchema = new mongoose.Schema({
   key: { type: String, required: true, unique: true },
@@ -19,64 +20,49 @@ router.get('/global-stats', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     console.log('global-stats requested for user:', req.user.id);
-    console.log('user.walletStats:', user?.walletStats);
+    console.log('user.wallet:', JSON.stringify(user?.wallet));
+    console.log('user.walletStats:', JSON.stringify(user?.walletStats));
     
-    if (user && user.walletStats) {
-      return res.json({
-        balance: user.walletStats.availableBalance || user.wallet?.balance || 0,
-        deposits: user.walletStats.totalDeposit || user.wallet?.deposits || 0,
-        withdrawals: user.walletStats.totalWithdraw || user.wallet?.withdrawals || 0,
-        profit: user.walletStats.totalProfit || 0,
-        availableBalance: user.walletStats.availableBalance || user.wallet?.balance || 0,
-        totalDeposit: user.walletStats.totalDeposit || user.wallet?.deposits || 0,
-        totalWithdraw: user.walletStats.totalWithdraw || user.wallet?.withdrawals || 0,
-        totalProfit: user.walletStats.totalProfit || 0
-      });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
-    
-    const stats = await GlobalStats.findOne({ key: 'global' });
-    if (!stats) {
-      const newStats = new GlobalStats({ key: 'global' });
-      await newStats.save();
-      return res.json({
-        balance: 0,
-        deposits: 0,
-        withdrawals: 0,
-        profit: 0,
-        availableBalance: 0,
-        totalDeposit: 0,
-        totalWithdraw: 0,
-        totalProfit: 0
-      });
-    }
-    
-    await stats.save();
-    
-    res.json({
-      balance: stats.availableBalance,
-      deposits: stats.totalDeposit,
-      withdrawals: stats.totalWithdraw,
-      profit: stats.totalProfit,
-      availableBalance: stats.availableBalance,
-      totalDeposit: stats.totalDeposit,
-      totalWithdraw: stats.totalWithdraw,
-      totalProfit: stats.totalProfit
+
+    const availableBalance = user.wallet?.balance ?? 0;
+    const totalDeposit = user.walletStats?.totalDeposit ?? user.wallet?.deposits ?? 0;
+    const totalWithdraw = user.walletStats?.totalWithdraw ?? user.wallet?.withdrawals ?? 0;
+    const totalProfit = user.walletStats?.totalProfit ?? 0;
+
+    console.log('Returning stats:', { availableBalance, totalDeposit, totalWithdraw, totalProfit });
+
+    return res.json({
+      balance: availableBalance,
+      deposits: totalDeposit,
+      withdrawals: totalWithdraw,
+      profit: totalProfit,
+      availableBalance: availableBalance,
+      totalDeposit: totalDeposit,
+      totalWithdraw: totalWithdraw,
+      totalProfit: totalProfit
     });
   } catch (error) {
+    console.error('Error fetching global-stats:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
 router.get('/balance', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('wallet walletStats');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    console.log('Balance endpoint - user wallet balance:', user.wallet.balance);
-    res.json({ 
+    res.json({
       balance: user.wallet?.balance || 0,
-      currency: user.wallet?.currency || 'USD'
+      currency: user.wallet?.currency || 'USD',
+      deposits: user.walletStats?.totalDeposit || user.wallet?.deposits || 0,
+      withdrawals: user.walletStats?.totalWithdraw || user.wallet?.withdrawals || 0,
+      profit: user.walletStats?.totalProfit || 0,
+      walletStats: user.walletStats || {}
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -85,7 +71,7 @@ router.get('/balance', auth, async (req, res) => {
 
 router.post('/deposit', auth, async (req, res) => {
   try {
-    const { amount, currency = 'USD', method, walletAddress, transactionHash } = req.body;
+    const { amount, currency = 'USD', method, walletAddress, transactionHash, coinSymbol, proofOfPaymentUrl, proofFilename } = req.body;
 
     if (amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
 
@@ -97,6 +83,9 @@ router.post('/deposit', auth, async (req, res) => {
       method,
       walletAddress,
       transactionHash,
+      coinSymbol: coinSymbol || 'BTC',
+      proofOfPaymentUrl,
+      proofFilename,
       status: method === 'crypto' ? 'pending' : 'completed'
     });
 
@@ -109,6 +98,32 @@ router.post('/deposit', auth, async (req, res) => {
 
     await transaction.save();
     res.status(201).json({ transaction });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/upload-proof', auth, async (req, res) => {
+  try {
+    const { transactionId } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+    
+    if (transactionId) {
+      const transaction = await Transaction.findOne({ _id: transactionId, user: req.user.id });
+      if (transaction) {
+        transaction.proofOfPaymentUrl = fileUrl;
+        transaction.proofFilename = req.file.originalname;
+        await transaction.save();
+        return res.json({ proofUrl: fileUrl, filename: req.file.originalname, transaction });
+      }
+    }
+    
+    res.json({ proofUrl: fileUrl, filename: req.file.originalname });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -184,22 +199,6 @@ router.post('/transfer', auth, async (req, res) => {
   }
 });
 
-router.get('/balance', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('wallet walletStats');
-    res.json({
-      balance: user.wallet?.balance || 0,
-      currency: user.wallet?.currency || 'USD',
-      deposits: user.walletStats?.totalDeposit || user.wallet?.deposits || 0,
-      withdrawals: user.walletStats?.totalWithdraw || user.wallet?.withdrawals || 0,
-      profit: user.walletStats?.totalProfit || 0,
-      walletStats: user.walletStats || {}
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 router.get('/transactions', auth, async (req, res) => {
   try {
     const { page = 1, limit = 50, type, status } = req.query;
@@ -268,6 +267,7 @@ router.get('/all', adminAuth, async (req, res) => {
 
 router.put('/:id/approve', adminAuth, async (req, res) => {
   try {
+    const { adminNote } = req.body;
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
 
@@ -283,6 +283,9 @@ router.put('/:id/approve', adminAuth, async (req, res) => {
     }
 
     transaction.status = 'completed';
+    transaction.processedBy = req.user.id;
+    transaction.processedAt = new Date();
+    if (adminNote) transaction.adminNote = adminNote;
     await transaction.save();
 
     res.json({ transaction });
@@ -293,6 +296,7 @@ router.put('/:id/approve', adminAuth, async (req, res) => {
 
 router.put('/:id/reject', adminAuth, async (req, res) => {
   try {
+    const { adminNote } = req.body;
     const transaction = await Transaction.findById(req.params.id);
     if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
 
@@ -308,6 +312,9 @@ router.put('/:id/reject', adminAuth, async (req, res) => {
     }
 
     transaction.status = 'rejected';
+    transaction.processedBy = req.user.id;
+    transaction.processedAt = new Date();
+    if (adminNote) transaction.adminNote = adminNote;
     await transaction.save();
 
     res.json({ transaction });

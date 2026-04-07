@@ -29,6 +29,8 @@ const userSchema = new mongoose.Schema({
   watchlist: [{ type: String }],
   referralCode: { type: String, unique: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  resetPasswordOTP: { type: String, select: false },
+  resetPasswordOTPExp: { type: Date },
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date }
 });

@@ -28,7 +28,7 @@ import {
   FaEyeSlash, FaSort, FaTimes, FaCheck,
   FaRocket, FaMicrochip, FaNetworkWired, FaCloud,
   FaCopy, FaSnowflake, FaServer as FaServerIcon, FaCrown,
-  FaBriefcase, FaHeadset, FaComments, FaTicketAlt,
+  FaBriefcase, FaHeadset, FaComments, FaComment, FaTicketAlt,
   FaPercentage, FaGift, FaHandHoldingUsd, FaClock
 } from 'react-icons/fa'
 import { 
@@ -865,6 +865,7 @@ const DashboardPage = ({ onLogout }) => {
     { id: 'overview', icon: FiGrid, label: 'Overview', color: 'from-blue-500 to-cyan-500' },
     { id: 'users', icon: FiUsers, label: 'Users', color: 'from-purple-500 to-pink-500' },
     { id: 'deposits', icon: FaCoins, label: 'Deposits', color: 'from-emerald-500 to-teal-500' },
+    { id: 'deposit-settings', icon: FaCoins, label: 'Deposit Settings', color: 'from-teal-500 to-cyan-500' },
     { id: 'transactions', icon: FiDollarSign, label: 'Transactions', color: 'from-amber-500 to-orange-500' },
     { id: 'trades', icon: FaChartLine, label: 'Trades', color: 'from-rose-500 to-pink-500' },
     { id: 'trade-settings', icon: FiZap, label: 'Trade Settings', color: 'from-orange-500 to-amber-500' },
@@ -1097,6 +1098,7 @@ const DashboardPage = ({ onLogout }) => {
               {activeTab === 'overview' && <OverviewTab stats={stats} isLoading={isLoading} showNotification={showNotification} />}
               {activeTab === 'users' && <UsersTab users={usersData} showNotification={showNotification} />}
               {activeTab === 'deposits' && <DepositTab showNotification={showNotification} />}
+              {activeTab === 'deposit-settings' && <DepositSettingsTab showNotification={showNotification} />}
               {activeTab === 'transactions' && <TransactionsTab transactions={transactions} showNotification={showNotification} />}
               {activeTab === 'trades' && <TradesTab trades={trades} showNotification={showNotification} />}
               {activeTab === 'trade-settings' && <TradeSettingsTab showNotification={showNotification} />}
@@ -2989,819 +2991,6 @@ const SettingsTab = ({ showNotification }) => {
   )
 }
 
-const AddressManagementTab = () => {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [addresses, setAddresses] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  const [showCoinModal, setShowCoinModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showViewModal, setShowViewModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedCoinData, setSelectedCoinData] = useState(null)
-  const [toast, setToast] = useState(null)
-  const [copiedId, setCopiedId] = useState(null)
-  const [saving, setSaving] = useState(false)
-
-  const [editData, setEditData] = useState({
-    address: '',
-    label: '',
-    qrBg: '#ffffff',
-    qrFg: '#000000',
-    status: 'active'
-  })
-
-  useEffect(() => {
-    fetchAddresses()
-  }, [])
-
-  const fetchAddresses = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/superadmin/deposit-addresses', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        const mapped = data.map(addr => ({
-          _id: addr._id,
-          coin: addr.symbol,
-          label: addr.coin,
-          address: addr.address,
-          status: addr.isActive ? 'active' : 'inactive',
-          balance: `0.00 ${addr.symbol}`,
-          qrBg: addr.qrBg || '#ffffff',
-          qrFg: addr.qrFg || '#000000',
-          updated: new Date(addr.updatedAt).toLocaleString()
-        }))
-        setAddresses(mapped)
-      }
-    } catch (error) {
-      console.error('Failed to fetch addresses:', error)
-      showToast('Failed to load addresses', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
-  }
-
-  const handleCopyAddress = (addr) => {
-    navigator.clipboard.writeText(addr.address)
-    setCopiedId(addr._id || addr.coin)
-    showToast('Address copied to clipboard!')
-    setTimeout(() => setCopiedId(null), 2000)
-  }
-
-  const handleExport = () => {
-    const csv = [
-      ['Label', 'Address', 'Coin', 'Balance', 'Status', 'Updated'].join(','),
-      ...addresses.map(a => [a.label, a.address, a.coin, a.balance, a.status, a.updated].join(','))
-    ].join('\n')
-    
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `wallet-addresses-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    showToast('Addresses exported successfully!')
-  }
-
-  const handleCoinSelect = (coinSymbol) => {
-    const existing = addresses.find(a => a.coin === coinSymbol)
-    if (existing) {
-      handleEditClick(existing)
-    } else {
-      setSelectedCoinData({ symbol: coinSymbol, ...COIN_COLORS[coinSymbol] })
-      setEditData({
-        address: '',
-        label: '',
-        qrBg: '#ffffff',
-        qrFg: '#000000',
-        status: 'active'
-      })
-      setShowCoinModal(false)
-      setShowEditModal(true)
-    }
-  }
-
-  const handleEditClick = (addr) => {
-    setSelectedCoinData({ symbol: addr.coin, ...COIN_COLORS[addr.coin] })
-    setEditData({
-      address: addr.address,
-      label: addr.label,
-      qrBg: addr.qrBg || '#ffffff',
-      qrFg: addr.qrFg || '#000000',
-      status: addr.status
-    })
-    setShowEditModal(true)
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editData.address || !editData.label) {
-      showToast('Please fill in all required fields', 'error')
-      return
-    }
-    setSaving(true)
-    try {
-      const existing = addresses.find(a => a.coin === selectedCoinData.symbol)
-      const payload = {
-        coin: selectedCoinData.symbol,
-        symbol: selectedCoinData.symbol,
-        address: editData.address,
-        memo: editData.label,
-        isActive: editData.status === 'active',
-        qrBg: editData.qrBg,
-        qrFg: editData.qrFg
-      }
-
-      if (existing) {
-        const res = await fetch(`/api/superadmin/deposit-addresses/${existing._id}`, {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(payload)
-        })
-        if (!res.ok) throw new Error('Failed to update')
-        showToast('Coin address updated!')
-      } else {
-        const res = await fetch('/api/superadmin/deposit-addresses', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(payload)
-        })
-        if (!res.ok) {
-          const err = await res.json()
-          if (err.message.includes('already exists')) {
-            showToast('Address already exists. Edit it instead.', 'error')
-            setSaving(false)
-            return
-          }
-          throw new Error('Failed to create')
-        }
-        showToast('Coin address added!')
-      }
-      await fetchAddresses()
-      setShowEditModal(false)
-    } catch (error) {
-      console.error('Save error:', error)
-      showToast('Failed to save address', 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleViewClick = (addr) => {
-    setSelectedCoinData({ symbol: addr.coin, ...COIN_COLORS[addr.coin] })
-    setEditData({
-      address: addr.address,
-      label: addr.label,
-      qrBg: addr.qrBg || '#ffffff',
-      qrFg: addr.qrFg || '#000000',
-      status: addr.status
-    })
-    setShowViewModal(true)
-  }
-
-  const handleDeleteClick = (addr) => {
-    setSelectedCoinData({ symbol: addr.coin, ...COIN_COLORS[addr.coin] })
-    setEditData({ address: addr.address, label: addr.label, qrBg: addr.qrBg, qrFg: addr.qrFg, status: addr.status })
-    setShowDeleteModal(true)
-  }
-
-  const handleConfirmDelete = async () => {
-    const existing = addresses.find(a => a.coin === selectedCoinData.symbol)
-    if (!existing) return
-    try {
-      const res = await fetch(`/api/superadmin/deposit-addresses/${existing._id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      if (!res.ok) throw new Error('Failed to delete')
-      showToast('Coin address deleted!')
-      await fetchAddresses()
-    } catch (error) {
-      console.error('Delete error:', error)
-      showToast('Failed to delete address', 'error')
-    }
-    setShowDeleteModal(false)
-  }
-
-  const handleToggleStatus = async (addr) => {
-    const newStatus = addr.status === 'active' ? 'inactive' : 'active'
-    try {
-      const res = await fetch(`/api/superadmin/deposit-addresses/${addr._id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ isActive: newStatus === 'active' })
-      })
-      if (!res.ok) throw new Error('Failed to update')
-      showToast(`Address ${newStatus === 'active' ? 'activated' : 'deactivated'}!`)
-      await fetchAddresses()
-    } catch (error) {
-      console.error('Toggle error:', error)
-      showToast('Failed to update status', 'error')
-    }
-  }
-
-  const filteredAddresses = addresses.filter(addr => {
-    return addr.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           addr.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           addr.coin.toLowerCase().includes(searchQuery.toLowerCase())
-  })
-
-  const getCoinBySymbol = (symbol) => addresses.find(a => a.coin === symbol)
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -50, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: -50, x: '-50%' }}
-            className={`fixed top-4 left-1/2 z-50 px-6 py-3 rounded-xl shadow-2xl ${
-              toast.type === 'error' ? 'bg-red-500/90 text-white' : 'bg-emerald-500/90 text-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              {toast.type === 'error' ? <FaTimesCircle className="w-5 h-5" /> : <FaCheckCircle className="w-5 h-5" />}
-              <span className="font-medium">{toast.message}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-2xl p-5"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-              <FaWallet className="w-5 h-5 text-blue-400" />
-            </div>
-            <span className="text-sm text-blue-400 font-medium">Configured Coins</span>
-          </div>
-          <p className="text-3xl font-bold text-white">{addresses.length}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-2xl p-5"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              <FaFire className="w-5 h-5 text-emerald-400" />
-            </div>
-            <span className="text-sm text-emerald-400 font-medium">Active Coins</span>
-          </div>
-          <p className="text-3xl font-bold text-white">{addresses.filter(a => a.status === 'active').length}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-2xl p-5"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-              <FaCoins className="w-5 h-5 text-purple-400" />
-            </div>
-            <span className="text-sm text-purple-400 font-medium">Available Coins</span>
-          </div>
-          <p className="text-3xl font-bold text-white">{SUPPORTED_COINS.length}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-2xl p-5"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-              <FaSnowflake className="w-5 h-5 text-amber-400" />
-            </div>
-            <span className="text-sm text-amber-400 font-medium">Pending Setup</span>
-          </div>
-          <p className="text-3xl font-bold text-white">{SUPPORTED_COINS.length - addresses.length}</p>
-        </motion.div>
-      </div>
-
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="relative">
-          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-          <input
-            type="text"
-            placeholder="Search coins..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-80 bg-white/[0.03] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white/80 hover:bg-white/[0.05] hover:text-white transition-all"
-          >
-            <FaDownload className="w-4 h-4" />
-            Export
-          </button>
-          <button
-            onClick={() => setShowCoinModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-          >
-            <FaPlus className="w-4 h-4" />
-            Manage Coins
-          </button>
-        </div>
-      </div>
-
-      <ModernCard className="p-6" hover={false}>
-        <h3 className="text-lg font-semibold text-white mb-6">Coin Addresses & QR Codes</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredAddresses.map((addr, i) => {
-            const coinInfo = COIN_COLORS[addr.coin] || { color: 'from-gray-500 to-gray-600', icon: addr.coin[0], bg: 'bg-gray-500/20', text: 'text-gray-400' }
-            return (
-              <motion.div
-                key={addr.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${coinInfo.color} flex items-center justify-center text-white text-xl font-bold shadow-lg`}>
-                      {coinInfo.icon}
-                    </div>
-                    <div>
-                      <h4 className="text-white font-semibold">{addr.coin}</h4>
-                      <p className="text-white/50 text-sm">{addr.label}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleToggleStatus(addr)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                      addr.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}
-                  >
-                    {addr.status}
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-xl p-3 mb-4 flex items-center justify-center">
-                  <QRCodeSVG
-                    value={addr.address}
-                    size={120}
-                    level="H"
-                    includeMargin={true}
-                    bgColor={addr.qrBg || '#ffffff'}
-                    fgColor={addr.qrFg || '#000000'}
-                  />
-                </div>
-
-                <div className="bg-white/[0.03] rounded-xl p-3 mb-4">
-                  <p className="text-white/50 text-xs mb-1 truncate">{addr.address.slice(0, 30)}...</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">{addr.balance}</span>
-                    <button
-                      onClick={() => handleCopyAddress(addr)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        copiedId === addr.id ? 'bg-emerald-500/30 text-emerald-400' : 'hover:bg-white/10 text-white/40 hover:text-white/60'
-                      }`}
-                    >
-                      {copiedId === addr.id ? <FaCheck className="w-3.5 h-3.5" /> : <FaCopy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleEditClick(addr)}
-                    className="flex-1 px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all text-sm font-medium flex items-center justify-center gap-2"
-                  >
-                    <FaEdit className="w-3.5 h-3.5" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleViewClick(addr)}
-                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all text-sm font-medium flex items-center justify-center gap-2"
-                  >
-                    <FaEye className="w-3.5 h-3.5" />
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(addr)}
-                    className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
-                  >
-                    <FaTrash className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-        {filteredAddresses.length === 0 && (
-          <div className="text-center py-12">
-            <FaCoins className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <p className="text-white/40 mb-4">No coin addresses configured yet</p>
-            <button
-              onClick={() => setShowCoinModal(true)}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-            >
-              Add Your First Coin
-            </button>
-          </div>
-        )}
-      </ModernCard>
-
-      <AnimatePresence>
-        {showCoinModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
-            onClick={() => setShowCoinModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Manage Coin Addresses</h3>
-                  <p className="text-white/50 text-sm mt-1">Click a coin to add or edit its address</p>
-                </div>
-                <button onClick={() => setShowCoinModal(false)} className="text-white/60 hover:text-white">
-                  <FaTimes className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {SUPPORTED_COINS.map((coinSymbol) => {
-                    const coin = COIN_COLORS[coinSymbol] || { color: 'from-gray-500 to-gray-600', icon: coinSymbol[0], bg: 'bg-gray-500/20', text: 'text-gray-400' }
-                    const hasAddress = !!getCoinBySymbol(coinSymbol)
-                    return (
-                      <motion.button
-                        key={coinSymbol}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleCoinSelect(coinSymbol)}
-                        className={`relative bg-white/[0.03] border rounded-xl p-4 flex flex-col items-center gap-2 transition-all ${
-                          hasAddress ? 'border-emerald-500/30 hover:border-emerald-500/50' : 'border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        {hasAddress && (
-                          <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-400" />
-                        )}
-                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${coin.color} flex items-center justify-center text-white text-2xl font-bold shadow-lg`}>
-                          {coin.icon}
-                        </div>
-                        <div className="text-center">
-                          <p className="font-semibold text-white text-sm">{coinSymbol}</p>
-                          <p className={`text-xs ${hasAddress ? 'text-emerald-400' : 'text-white/40'}`}>
-                            {hasAddress ? 'Configured' : 'Not Set'}
-                          </p>
-                        </div>
-                      </motion.button>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className="mt-6 pt-4 border-t border-white/10">
-                <button
-                  onClick={() => setShowCoinModal(false)}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showEditModal && selectedCoinData && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
-            onClick={() => setShowEditModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-2xl"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedCoinData.color} flex items-center justify-center text-white text-xl font-bold shadow-lg`}>
-                    {selectedCoinData.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{selectedCoinData.symbol} Address</h3>
-                    <p className="text-white/50 text-sm">Configure deposit address & QR code</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowEditModal(false)} className="text-white/60 hover:text-white">
-                  <FaTimes className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Label *</label>
-                    <input
-                      type="text"
-                      value={editData.label}
-                      onChange={(e) => setEditData({...editData, label: e.target.value})}
-                      placeholder="e.g., Main Deposit Wallet"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Wallet Address *</label>
-                    <input
-                      type="text"
-                      value={editData.address}
-                      onChange={(e) => setEditData({...editData, address: e.target.value})}
-                      placeholder="Enter wallet address..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-blue-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Status</label>
-                    <select
-                      value={editData.status}
-                      onChange={(e) => setEditData({...editData, status: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-white/60 mb-3">QR Code Colors</label>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-white/40 mb-2">Background</label>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="color"
-                            value={editData.qrBg}
-                            onChange={(e) => setEditData({...editData, qrBg: e.target.value})}
-                            className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
-                          />
-                          <input
-                            type="text"
-                            value={editData.qrBg}
-                            onChange={(e) => setEditData({...editData, qrBg: e.target.value})}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/40 mb-2">Foreground</label>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="color"
-                            value={editData.qrFg}
-                            onChange={(e) => setEditData({...editData, qrFg: e.target.value})}
-                            className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
-                          />
-                          <input
-                            type="text"
-                            value={editData.qrFg}
-                            onChange={(e) => setEditData({...editData, qrFg: e.target.value})}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center justify-center bg-white/5 rounded-2xl p-6">
-                  <p className="text-sm text-white/60 mb-4">QR Code Preview</p>
-                  <div 
-                    className="rounded-2xl p-4 flex items-center justify-center"
-                    style={{ backgroundColor: editData.qrBg || '#ffffff' }}
-                  >
-                    {editData.address ? (
-                      <QRCodeSVG
-                        value={editData.address}
-                        size={160}
-                        level="H"
-                        includeMargin={true}
-                        bgColor={editData.qrBg || '#ffffff'}
-                        fgColor={editData.qrFg || '#000000'}
-                      />
-                    ) : (
-                      <div className="w-[160px] h-[160px] flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
-                        <span className="text-gray-400 text-sm">Enter address</span>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-white/40 text-xs mt-4 text-center">Live preview updates as you type</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveEdit}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showViewModal && selectedCoinData && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
-            onClick={() => setShowViewModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedCoinData.color} flex items-center justify-center text-white text-xl font-bold shadow-lg`}>
-                    {selectedCoinData.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{selectedCoinData.symbol}</h3>
-                    <p className="text-white/50 text-sm">{editData.label}</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowViewModal(false)} className="text-white/60 hover:text-white">
-                  <FaTimes className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div 
-                className="rounded-2xl p-6 mb-6 flex items-center justify-center"
-                style={{ backgroundColor: editData.qrBg || '#ffffff' }}
-              >
-                <QRCodeSVG
-                  value={editData.address}
-                  size={180}
-                  level="H"
-                  includeMargin={true}
-                  bgColor={editData.qrBg || '#ffffff'}
-                  fgColor={editData.qrFg || '#000000'}
-                />
-              </div>
-
-              <div className="bg-white/5 rounded-xl p-4 mb-6">
-                <label className="text-sm text-white/60 mb-2 block">Deposit Address</label>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-white font-mono text-sm break-all flex-1">{editData.address}</p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(editData.address)
-                      showToast('Address copied!')
-                    }}
-                    className="shrink-0 p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-                  >
-                    <FaCopy className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mb-6">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  editData.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                }`}>
-                  {editData.status}
-                </span>
-                <div className="flex items-center gap-2 text-white/40 text-sm">
-                  <span>QR Colors:</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 rounded border border-white/20" style={{ backgroundColor: editData.qrBg }} />
-                    <span>/</span>
-                    <div className="w-4 h-4 rounded border border-white/20" style={{ backgroundColor: editData.qrFg }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowViewModal(false)
-                    setShowEditModal(true)
-                  }}
-                  className="flex-1 px-4 py-3 rounded-xl bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all flex items-center justify-center gap-2"
-                >
-                  <FaEdit className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDeleteModal && selectedCoinData && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowDeleteModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-sm"
-            >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-                  <FaExclamationTriangle className="w-8 h-8 text-red-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Delete {selectedCoinData.symbol} Address</h3>
-                <p className="text-white/60">
-                  Are you sure you want to delete the address for <span className="text-white font-medium">{selectedCoinData.symbol}</span>? This action cannot be undone.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-all"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
 const PortfolioTab = ({ showNotification }) => {
   const [selectedAsset, setSelectedAsset] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -4201,26 +3390,13 @@ const PortfolioTab = ({ showNotification }) => {
 }
 
 const WalletTab = ({ showNotification }) => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [selectedWallet, setSelectedWallet] = useState(null)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showStatsModal, setShowStatsModal] = useState(false)
-  const [wallets, setWallets] = useState([
-    { id: 1, name: 'Main Deposit', coin: 'BTC', address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', balance: 15.234, status: 'active', created: '2024-01-15' },
-    { id: 2, name: 'Trading Hot Wallet', coin: 'ETH', address: '0x71c7656ec7ab88b098defb751b7401b5f6d8976f', balance: 125.5, status: 'active', created: '2024-02-20' },
-    { id: 3, name: 'Cold Storage', coin: 'USDT', address: '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE', balance: 500000, status: 'active', created: '2024-03-05' },
-    { id: 4, name: 'Withdrawal Pool', coin: 'BTC', address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', balance: 3.892, status: 'inactive', created: '2024-03-10' },
-  ])
   const [walletStats, setWalletStats] = useState({
     availableBalance: 0,
     totalDeposit: 0,
     totalWithdraw: 0,
     totalProfit: 0
   })
-  const [formData, setFormData] = useState({ name: '', coin: 'BTC', address: '', balance: '' })
   const [statsFormData, setStatsFormData] = useState({ ...walletStats })
   const [selectedUserId, setSelectedUserId] = useState(null)
   const [users, setUsers] = useState([])
@@ -4255,14 +3431,6 @@ const WalletTab = ({ showNotification }) => {
       setSelectedUserName('Global Stats')
     }
   }
-
-  const filteredWallets = wallets.filter(wallet => {
-    const matchesSearch = wallet.name.toLowerCase().includes(searchTerm.toLowerCase()) || wallet.coin.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || wallet.status === filterStatus
-    return matchesSearch && matchesStatus
-  })
-
-  const totalBalance = wallets.reduce((sum, w) => sum + w.balance, 0)
 
   const fetchWalletStats = async () => {
     try {
@@ -4306,50 +3474,6 @@ const WalletTab = ({ showNotification }) => {
       fetchWalletStats()
     }
   }, [selectedUserId, users])
-
-  const handleCreate = () => {
-    if (!formData.name || !formData.address) return
-    const newWallet = { id: Date.now(), name: formData.name, coin: formData.coin, address: formData.address, balance: parseFloat(formData.balance) || 0, status: 'active', created: new Date().toISOString().split('T')[0] }
-    setWallets([...wallets, newWallet])
-    setShowAddModal(false)
-    setFormData({ name: '', coin: 'BTC', address: '', balance: '' })
-    showNotification('Wallet created successfully')
-  }
-
-  const handleUpdate = () => {
-    if (!selectedWallet || !formData.name) return
-    const updated = wallets.map(w => w.id === selectedWallet.id ? { ...w, name: formData.name, coin: formData.coin, address: formData.address, balance: parseFloat(formData.balance) || 0 } : w)
-    setWallets(updated)
-    setShowEditModal(false)
-    setSelectedWallet(null)
-    setFormData({ name: '', coin: 'BTC', address: '', balance: '' })
-    showNotification('Wallet updated successfully')
-  }
-
-  const handleDelete = () => {
-    if (!selectedWallet) return
-    setWallets(wallets.filter(w => w.id !== selectedWallet.id))
-    setShowDeleteModal(false)
-    setSelectedWallet(null)
-    showNotification('Wallet deleted successfully')
-  }
-
-  const openEditModal = (wallet) => {
-    setSelectedWallet(wallet)
-    setFormData({ name: wallet.name, coin: wallet.coin, address: wallet.address, balance: wallet.balance.toString() })
-    setShowEditModal(true)
-  }
-
-  const openDeleteModal = (wallet) => {
-    setSelectedWallet(wallet)
-    setShowDeleteModal(true)
-  }
-
-  const toggleStatus = (wallet) => {
-    const updated = wallets.map(w => w.id === wallet.id ? { ...w, status: w.status === 'active' ? 'inactive' : 'active' } : w)
-    setWallets(updated)
-    showNotification(`Wallet ${wallet.status === 'active' ? 'deactivated' : 'activated'}`)
-  }
 
   const openStatsModal = () => {
     setStatsFormData({ ...walletStats })
@@ -4465,143 +3589,6 @@ const WalletTab = ({ showNotification }) => {
         </ModernCard>
       </div>
 
-      <ModernCard className="p-6" hover={false}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search wallets..." className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
-          </div>
-          <div className="flex items-center gap-3">
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm focus:outline-none cursor-pointer">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <GlowButton onClick={() => { setFormData({ name: '', coin: 'BTC', address: '', balance: '' }); setShowAddModal(true); }} variant="success">
-              <FaPlus className="w-4 h-4" /> Add Wallet
-            </GlowButton>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredWallets.map((wallet) => (
-            <motion.div key={wallet.id} whileHover={{ scale: 1.02, y: -4 }} className="p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-cyan-500/30 transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${COIN_COLORS[wallet.coin]?.color || 'from-gray-500 to-gray-600'} flex items-center justify-center text-white font-bold text-sm`}>{COIN_COLORS[wallet.coin]?.icon || wallet.coin.slice(0, 2)}</div>
-                  <div>
-                    <p className="text-white font-medium">{wallet.name}</p>
-                    <p className="text-sm text-white/40">{wallet.coin}</p>
-                  </div>
-                </div>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={() => toggleStatus(wallet)} className={`px-2 py-1 rounded-full text-xs font-medium cursor-pointer ${wallet.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.status}</motion.button>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/40">Balance</span>
-                  <span className="text-white font-medium">{wallet.balance} {wallet.coin}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/40">Address</span>
-                  <span className="text-white/60 font-mono text-xs">{wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
-                <span className="text-xs text-white/30">{wallet.created}</span>
-                <div className="flex gap-2">
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => { navigator.clipboard.writeText(wallet.address); showNotification('Address copied!'); }} className="p-1.5 rounded-lg bg-white/10 text-white/60 hover:text-white transition-colors"><FaCopy className="w-3.5 h-3.5" /></motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditModal(wallet)} className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"><FaEdit className="w-3.5 h-3.5" /></motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openDeleteModal(wallet)} className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"><FaTrash className="w-3.5 h-3.5" /></motion.button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </ModernCard>
-
-      <AnimatePresence>
-        {showAddModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowAddModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold text-white mb-6">Add New Wallet</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Wallet Name</label>
-                  <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g., Main Deposit Wallet" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Coin</label>
-                  <select value={formData.coin} onChange={(e) => setFormData({...formData, coin: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 cursor-pointer">
-                    {SUPPORTED_COINS.map(coin => <option key={coin} value={coin}>{coin}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Wallet Address</label>
-                  <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} placeholder="Enter wallet address..." className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Initial Balance</label>
-                  <input type="number" value={formData.balance} onChange={(e) => setFormData({...formData, balance: e.target.value})} placeholder="0.00" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all">Cancel</button>
-                <button onClick={handleCreate} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium hover:shadow-lg hover:shadow-cyan-500/30 transition-all">Create Wallet</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showEditModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold text-white mb-6">Edit Wallet</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Wallet Name</label>
-                  <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Coin</label>
-                  <select value={formData.coin} onChange={(e) => setFormData({...formData, coin: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 cursor-pointer">
-                    {SUPPORTED_COINS.map(coin => <option key={coin} value={coin}>{coin}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Wallet Address</label>
-                  <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
-                </div>
-                <div>
-                  <label className="text-sm text-white/60 mb-2 block">Balance</label>
-                  <input type="number" value={formData.balance} onChange={(e) => setFormData({...formData, balance: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all">Cancel</button>
-                <button onClick={handleUpdate} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all">Update Wallet</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDeleteModal && selectedWallet && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowDeleteModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold text-white mb-4">Delete Wallet</h3>
-              <p className="text-white/60 mb-6">Are you sure you want to delete {selectedWallet.name}? This action cannot be undone.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10">Cancel</button>
-                <button onClick={handleDelete} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-medium">Delete</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <AnimatePresence>
         {showStatsModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowStatsModal(false)}>
@@ -4638,21 +3625,30 @@ const WalletTab = ({ showNotification }) => {
 }
 
 const DepositTab = ({ showNotification }) => {
-  const { data: depositsData, refetch } = useQuery({
+  const { data: depositsData, refetch, error } = useQuery({
     queryKey: ['superadmin-deposits'],
     queryFn: async () => {
+      const token = localStorage.getItem('token')
+      const superadminToken = localStorage.getItem('superadminToken') || token
       const res = await fetch('/api/superadmin/deposits', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${superadminToken}` }
       })
+      console.log('Superadmin deposits response:', res.status, res.ok)
       const data = await res.json()
+      console.log('Deposits data:', Array.isArray(data) ? data.length : 'object with deposits', data)
       return Array.isArray(data) ? data : (data.deposits || [])
     }
   })
+
+  if (error) {
+    console.error('Deposits query error:', error)
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [processingId, setProcessingId] = useState(null)
   const [selectedDeposit, setSelectedDeposit] = useState(null)
+  const [showProofModal, setShowProofModal] = useState(false)
   const [allDeposits, setAllDeposits] = useState(() => {
     if (depositsData && depositsData.length > 0) {
       return depositsData
@@ -4665,6 +3661,52 @@ const DepositTab = ({ showNotification }) => {
       { _id: 'DEP005', user: { name: 'David Lee', email: 'david@example.com' }, amount: 3200, method: 'card', status: 'completed', createdAt: new Date() },
     ]
   })
+
+  const [addressSearchTerm, setAddressSearchTerm] = useState('')
+  const [addressFilterStatus, setAddressFilterStatus] = useState('all')
+  const [selectedWallet, setSelectedWallet] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [wallets, setWallets] = useState([])
+  const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const [formData, setFormData] = useState({ name: '', coin: 'BTC', address: '', balance: '' })
+
+  const fetchAddresses = async () => {
+    setLoadingAddresses(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/superadmin/deposit-addresses', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const mapped = data.map((addr, idx) => ({
+          id: addr._id || idx + 1,
+          name: addr.memo || addr.label || addr.symbol,
+          coin: addr.symbol || addr.coin,
+          address: addr.address,
+          balance: 0,
+          status: addr.isActive ? 'active' : 'inactive',
+          created: addr.createdAt ? new Date(addr.createdAt).toLocaleDateString() : new Date().toLocaleDateString()
+        }))
+        setWallets(mapped)
+      } else {
+        setWallets([
+          { id: 1, name: 'Main Deposit', coin: 'BTC', address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', balance: 15.234, status: 'active', created: '2024-01-15' },
+          { id: 2, name: 'ETH Wallet', coin: 'ETH', address: '0x71c7656ec7ab88b098defb751b7401b5f6d8976f', balance: 125.5, status: 'active', created: '2024-02-20' },
+        ])
+      }
+    } catch (error) {
+      console.error('Failed to fetch addresses:', error)
+    } finally {
+      setLoadingAddresses(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAddresses()
+  }, [])
 
   useEffect(() => {
     if (depositsData && depositsData.length > 0) {
@@ -4692,30 +3734,29 @@ const DepositTab = ({ showNotification }) => {
   const handleApprove = async (deposit) => {
     setProcessingId(deposit._id)
     
-    const updated = allDeposits.map(d => d._id === deposit._id ? { ...d, status: 'completed' } : d)
-    setAllDeposits(updated)
-    
-    if (deposit._id.startsWith('DEP')) {
-      showNotification('Deposit approved successfully!')
-      setProcessingId(null)
-      return
-    }
-    
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/superadmin/deposits/${deposit._id}/approve`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({})
       })
       
       if (res.ok) {
+        const updated = allDeposits.map(d => d._id === deposit._id ? { ...d, status: 'completed' } : d)
+        setAllDeposits(updated)
         refetch()
-        showNotification('Deposit approved successfully!')
+        setShowProofModal(false)
+        showNotification('Deposit approved successfully! User balance credited.')
       } else {
-        showNotification('Failed to approve deposit')
+        const errorData = await res.json()
+        showNotification(errorData.message || 'Failed to approve deposit', 'error')
       }
     } catch (error) {
-      showNotification('Failed to approve deposit')
+      showNotification('Failed to approve deposit', 'error')
     }
     setProcessingId(null)
   }
@@ -4723,32 +3764,166 @@ const DepositTab = ({ showNotification }) => {
   const handleReject = async (deposit) => {
     setProcessingId(deposit._id)
     
-    const updated = allDeposits.map(d => d._id === deposit._id ? { ...d, status: 'rejected' } : d)
-    setAllDeposits(updated)
-    
-    if (deposit._id.startsWith('DEP')) {
-      showNotification('Deposit rejected!')
-      setProcessingId(null)
-      return
-    }
-    
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/superadmin/deposits/${deposit._id}/reject`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({})
       })
       
       if (res.ok) {
+        const updated = allDeposits.map(d => d._id === deposit._id ? { ...d, status: 'rejected' } : d)
+        setAllDeposits(updated)
         refetch()
+        setShowProofModal(false)
         showNotification('Deposit rejected!')
       } else {
-        showNotification('Failed to reject deposit')
+        const errorData = await res.json()
+        showNotification(errorData.message || 'Failed to reject deposit', 'error')
       }
     } catch (error) {
-      showNotification('Failed to reject deposit')
+      showNotification('Failed to reject deposit', 'error')
     }
     setProcessingId(null)
+  }
+
+  const openProofModal = (deposit) => {
+    setSelectedDeposit(deposit)
+    setShowProofModal(true)
+  }
+
+  const filteredWallets = wallets.filter(wallet => {
+    const matchesSearch = wallet.name.toLowerCase().includes(addressSearchTerm.toLowerCase()) || wallet.coin.toLowerCase().includes(addressSearchTerm.toLowerCase())
+    const matchesStatus = addressFilterStatus === 'all' || wallet.status === addressFilterStatus
+    return matchesSearch && matchesStatus
+  })
+
+  const handleCreateWallet = async () => {
+    if (!formData.name || !formData.address) return
+    try {
+      const token = localStorage.getItem('token')
+      const payload = {
+        coin: formData.coin,
+        symbol: formData.coin,
+        address: formData.address,
+        memo: formData.name,
+        isActive: true
+      }
+      const res = await fetch('/api/superadmin/deposit-addresses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        showNotification('Address created successfully')
+        await fetchAddresses()
+      } else {
+        const errorData = await res.json()
+        showNotification(errorData.message || 'Failed to create address', 'error')
+      }
+    } catch (error) {
+      showNotification('Failed to create address', 'error')
+    }
+    setShowAddModal(false)
+    setFormData({ name: '', coin: 'BTC', address: '', balance: '' })
+  }
+
+  const handleUpdateWallet = async () => {
+    if (!selectedWallet || !formData.name) return
+    try {
+      const token = localStorage.getItem('token')
+      const payload = {
+        address: formData.address,
+        memo: formData.name
+      }
+      console.log('Updating address:', selectedWallet.id, payload)
+      const res = await fetch(`/api/superadmin/deposit-addresses/${selectedWallet.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+      console.log('Update response status:', res.status)
+      if (res.ok) {
+        const data = await res.json()
+        console.log('Update response data:', data)
+        showNotification('Address updated successfully')
+        await fetchAddresses()
+      } else {
+        const errorData = await res.json()
+        console.error('Update error:', errorData)
+        showNotification(errorData.message || 'Failed to update address', 'error')
+      }
+    } catch (error) {
+      console.error('Update catch error:', error)
+      showNotification('Failed to update address', 'error')
+    }
+    setShowEditModal(false)
+    setSelectedWallet(null)
+    setFormData({ name: '', coin: 'BTC', address: '', balance: '' })
+  }
+
+  const handleDeleteWallet = async () => {
+    if (!selectedWallet) return
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/superadmin/deposit-addresses/${selectedWallet.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        showNotification('Address deleted successfully')
+        await fetchAddresses()
+      } else {
+        setWallets(wallets.filter(w => w.id !== selectedWallet.id))
+        showNotification('Address deleted locally')
+      }
+    } catch (error) {
+      setWallets(wallets.filter(w => w.id !== selectedWallet.id))
+      showNotification('Address deleted locally')
+    }
+    setShowDeleteModal(false)
+    setSelectedWallet(null)
+  }
+
+  const openEditModal = (wallet) => {
+    setSelectedWallet(wallet)
+    setFormData({ name: wallet.name, coin: wallet.coin, address: wallet.address, balance: wallet.balance.toString() })
+    setShowEditModal(true)
+  }
+
+  const openDeleteModal = (wallet) => {
+    setSelectedWallet(wallet)
+    setShowDeleteModal(true)
+  }
+
+  const toggleStatus = async (wallet) => {
+    const newStatus = wallet.status === 'active' ? 'inactive' : 'active'
+    const updated = wallets.map(w => w.id === wallet.id ? { ...w, status: newStatus } : w)
+    setWallets(updated)
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`/api/superadmin/deposit-addresses/${wallet.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: newStatus === 'active' })
+      })
+    } catch (error) {
+      console.error('Failed to toggle status on server')
+    }
+    showNotification(`Address ${newStatus === 'active' ? 'activated' : 'deactivated'}`)
   }
 
   return (
@@ -4842,6 +4017,9 @@ const DepositTab = ({ showNotification }) => {
                   <p className="font-semibold text-white">{deposit.user?.name || 'Unknown User'}</p>
                   <p className="text-sm text-white/50">{deposit.user?.email}</p>
                   <p className="text-xs text-white/30">ID: {deposit._id}</p>
+                  {deposit.coinSymbol && (
+                    <p className="text-xs text-cyan-400 mt-1">Coin: {deposit.coinSymbol}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-6">
@@ -4855,6 +4033,17 @@ const DepositTab = ({ showNotification }) => {
                 }`}>
                   {deposit.status}
                 </div>
+                {deposit.proofOfPaymentUrl && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => openProofModal(deposit)}
+                    className="px-3 py-2 rounded-xl bg-blue-500/20 text-blue-400 font-medium text-sm flex items-center gap-2"
+                  >
+                    <FaEye className="w-4 h-4" />
+                    View Proof
+                  </motion.button>
+                )}
                 {deposit.status === 'pending' && (
                   <div className="flex gap-2">
                     <motion.button
@@ -4881,6 +4070,1158 @@ const DepositTab = ({ showNotification }) => {
             </div>
           </motion.div>
         ))}
+      </div>
+
+      <AnimatePresence>
+        {showProofModal && selectedDeposit && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowProofModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Deposit Details & Proof</h3>
+                <button onClick={() => setShowProofModal(false)} className="p-2 rounded-lg bg-white/10 text-white/60 hover:text-white hover:bg-white/20 transition-colors">
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-white/50 text-sm mb-1">User</p>
+                    <p className="text-white font-medium">{selectedDeposit.user?.name || 'Unknown'}</p>
+                    <p className="text-white/60 text-sm">{selectedDeposit.user?.email}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-white/50 text-sm mb-1">Amount</p>
+                    <p className="text-2xl font-bold text-emerald-400">${selectedDeposit.amount?.toLocaleString()}</p>
+                    <p className="text-white/60 text-sm">{selectedDeposit.coinSymbol || selectedDeposit.method}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/5">
+                  <p className="text-white/50 text-sm mb-2">Transaction ID</p>
+                  <p className="text-white font-mono text-sm">{selectedDeposit._id}</p>
+                </div>
+
+                {selectedDeposit.walletAddress && (
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-white/50 text-sm mb-2">Wallet Address</p>
+                    <p className="text-white font-mono text-sm break-all">{selectedDeposit.walletAddress}</p>
+                  </div>
+                )}
+
+                {selectedDeposit.proofFilename && (
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-white/50 text-sm mb-2">Proof Filename</p>
+                    <p className="text-white font-medium">{selectedDeposit.proofFilename}</p>
+                  </div>
+                )}
+
+                <div className="p-4 rounded-xl bg-white/5">
+                  <p className="text-white/50 text-sm mb-2">Status</p>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedDeposit.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                    selectedDeposit.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {selectedDeposit.status === 'completed' ? <FaCheckCircle className="w-4 h-4" /> :
+                     selectedDeposit.status === 'pending' ? <FaClock className="w-4 h-4" /> :
+                     <FaTimesCircle className="w-4 h-4" />}
+                    {selectedDeposit.status}
+                  </div>
+                </div>
+
+                {selectedDeposit.createdAt && (
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-white/50 text-sm mb-1">Submitted</p>
+                    <p className="text-white">{new Date(selectedDeposit.createdAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedDeposit.proofOfPaymentUrl && (
+                <div className="mb-6">
+                  <p className="text-white font-medium mb-3">Proof of Payment</p>
+                  <div className="relative rounded-xl overflow-hidden border border-white/10">
+                    {selectedDeposit.proofOfPaymentUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      <img 
+                        src={selectedDeposit.proofOfPaymentUrl} 
+                        alt="Proof of Payment"
+                        className="w-full max-h-96 object-contain bg-black/20"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-48 bg-white/5">
+                        <div className="text-center">
+                          <FaFileAlt className="w-12 h-12 text-white/40 mx-auto mb-2" />
+                          <p className="text-white/60">{selectedDeposit.proofFilename || 'Document'}</p>
+                          <a 
+                            href={selectedDeposit.proofOfPaymentUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 text-sm hover:bg-cyan-500/30 transition-colors"
+                          >
+                            <FaDownload className="w-4 h-4" /> Download
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedDeposit.status === 'pending' && (
+                <div className="flex gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleApprove(selectedDeposit)}
+                    disabled={processingId === selectedDeposit._id}
+                    className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <FaCheckCircle className="w-5 h-5" />
+                    {processingId === selectedDeposit._id ? 'Processing...' : 'Approve & Credit User'}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleReject(selectedDeposit)}
+                    disabled={processingId === selectedDeposit._id}
+                    className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <FaTimesCircle className="w-5 h-5" />
+                    Reject
+                  </motion.button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ModernCard className="p-6" hover={false}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <h3 className="text-lg font-semibold text-white">Deposit Addresses</h3>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+              <input type="text" value={addressSearchTerm} onChange={(e) => setAddressSearchTerm(e.target.value)} placeholder="Search wallets..." className="w-64 pl-12 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm" />
+            </div>
+            <select value={addressFilterStatus} onChange={(e) => setAddressFilterStatus(e.target.value)} className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm focus:outline-none cursor-pointer">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <GlowButton onClick={() => { setFormData({ name: '', coin: 'BTC', address: '', balance: '' }); setShowAddModal(true); }} variant="success">
+              <FaPlus className="w-4 h-4" /> Add Address
+            </GlowButton>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredWallets.map((wallet) => (
+            <motion.div key={wallet.id} whileHover={{ scale: 1.02, y: -4 }} className="p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:border-cyan-500/30 transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${COIN_COLORS[wallet.coin]?.color || 'from-gray-500 to-gray-600'} flex items-center justify-center text-white font-bold text-sm`}>{COIN_COLORS[wallet.coin]?.icon || wallet.coin.slice(0, 2)}</div>
+                  <div>
+                    <p className="text-white font-medium">{wallet.name}</p>
+                    <p className="text-sm text-white/40">{wallet.coin}</p>
+                  </div>
+                </div>
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => toggleStatus(wallet)} className={`px-2 py-1 rounded-full text-xs font-medium cursor-pointer ${wallet.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{wallet.status}</motion.button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/40">Balance</span>
+                  <span className="text-white font-medium">{wallet.balance} {wallet.coin}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-white/40">Address</span>
+                  <span className="text-white/60 font-mono text-xs">{wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                <span className="text-xs text-white/30">{wallet.created}</span>
+                <div className="flex gap-2">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => { navigator.clipboard.writeText(wallet.address); showNotification('Address copied!'); }} className="p-1.5 rounded-lg bg-white/10 text-white/60 hover:text-white transition-colors"><FaCopy className="w-3.5 h-3.5" /></motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditModal(wallet)} className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"><FaEdit className="w-3.5 h-3.5" /></motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openDeleteModal(wallet)} className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"><FaTrash className="w-3.5 h-3.5" /></motion.button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </ModernCard>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowAddModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold text-white mb-6">Add New Address</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Wallet Name</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g., Main Deposit Wallet" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Coin</label>
+                  <select value={formData.coin} onChange={(e) => setFormData({...formData, coin: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 cursor-pointer">
+                    {SUPPORTED_COINS.map(coin => <option key={coin} value={coin}>{coin}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Wallet Address</label>
+                  <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} placeholder="Enter wallet address..." className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Initial Balance</label>
+                  <input type="number" value={formData.balance} onChange={(e) => setFormData({...formData, balance: e.target.value})} placeholder="0.00" className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowAddModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all">Cancel</button>
+                <button onClick={handleCreateWallet} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium hover:shadow-lg hover:shadow-cyan-500/30 transition-all">Create</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowEditModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold text-white mb-6">Edit Address</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Wallet Name</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Coin</label>
+                  <select value={formData.coin} onChange={(e) => setFormData({...formData, coin: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 cursor-pointer">
+                    {SUPPORTED_COINS.map(coin => <option key={coin} value={coin}>{coin}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Wallet Address</label>
+                  <input type="text" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
+                </div>
+                <div>
+                  <label className="text-sm text-white/60 mb-2 block">Balance</label>
+                  <input type="number" value={formData.balance} onChange={(e) => setFormData({...formData, balance: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all">Cancel</button>
+                <button onClick={handleUpdateWallet} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all">Update</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDeleteModal && selectedWallet && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowDeleteModal(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold text-white mb-4">Delete Address</h3>
+              <p className="text-white/60 mb-6">Are you sure you want to delete {selectedWallet.name}? This action cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10">Cancel</button>
+                <button onClick={handleDeleteWallet} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-medium">Delete</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+const DepositSettingsTab = ({ showNotification }) => {
+  const [activeSection, setActiveSection] = useState('general')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showAddCoin, setShowAddCoin] = useState(false)
+  const [newCoinForm, setNewCoinForm] = useState({ symbol: '', minDeposit: 0.001, networkFee: 0.0001, confirmations: 6 })
+  const [settings, setSettings] = useState({
+    isEnabled: true,
+    maintenanceMode: false,
+    maintenanceMessage: 'Deposits are temporarily unavailable. Please try again later.',
+    general: {
+      minDeposit: 10,
+      maxDeposit: 100000,
+      defaultCurrency: 'USD',
+      autoApproveDeposits: false,
+      requireProofOfPayment: true,
+      paymentTimeoutMinutes: 30,
+    },
+    fees: {
+      depositFeeType: 'none',
+      depositFee: 0,
+      depositFeePercent: 0,
+    },
+    coins: {
+      BTC: { isEnabled: true, minDeposit: 0.0001, networkFee: 0.0001, confirmations: 3, customLabel: '', customDescription: '' },
+      ETH: { isEnabled: true, minDeposit: 0.001, networkFee: 0.005, confirmations: 12, customLabel: '', customDescription: '' },
+      USDT: { isEnabled: true, minDeposit: 10, networkFee: 1, confirmations: 6, customLabel: '', customDescription: '' },
+      SOL: { isEnabled: true, minDeposit: 0.01, networkFee: 0.00025, confirmations: 1, customLabel: '', customDescription: '' },
+      XRP: { isEnabled: true, minDeposit: 10, networkFee: 1, confirmations: 1, customLabel: '', customDescription: '' },
+      BNB: { isEnabled: true, minDeposit: 0.01, networkFee: 0.001, confirmations: 1, customLabel: '', customDescription: '' },
+      ADA: { isEnabled: true, minDeposit: 10, networkFee: 1, confirmations: 1, customLabel: '', customDescription: '' },
+      DOGE: { isEnabled: true, minDeposit: 100, networkFee: 10, confirmations: 1, customLabel: '', customDescription: '' },
+      DOT: { isEnabled: true, minDeposit: 10, networkFee: 1, confirmations: 1, customLabel: '', customDescription: '' },
+      AVAX: { isEnabled: true, minDeposit: 1, networkFee: 0.025, confirmations: 1, customLabel: '', customDescription: '' },
+      MATIC: { isEnabled: true, minDeposit: 10, networkFee: 1, confirmations: 1, customLabel: '', customDescription: '' },
+      LINK: { isEnabled: true, minDeposit: 10, networkFee: 0.5, confirmations: 1, customLabel: '', customDescription: '' },
+    },
+    ui: {
+      primaryColor: '#f59e0b',
+      secondaryColor: '#d97706',
+      showTimer: true,
+      showProgressSteps: true,
+      showQRCode: true,
+      showFeeInfo: true,
+      showNetworkInfo: true,
+      confirmButtonText: 'Confirm Deposit',
+      successMessage: 'Deposit submitted successfully! Waiting for admin approval.',
+      headerTitle: 'Deposit Crypto',
+      headerSubtitle: 'Select cryptocurrency to deposit',
+    },
+    messages: {
+      welcomeTitle: 'Deposit {amount} {symbol}',
+      welcomeSubtitle: 'Send the exact amount to complete your deposit',
+      warningText: 'Only send {symbol} to this address. Sending other assets may result in permanent loss.',
+      successTitle: 'Deposit Complete',
+      successSubtitle: 'Your deposit has been approved successfully!',
+      pendingTitle: 'Waiting for Approval',
+      pendingSubtitle: 'Your deposit is being reviewed by our team',
+    },
+  })
+
+  const fetchSettings = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/superadmin/deposit-settings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && Object.keys(data).length > 0) {
+          setSettings(prev => ({
+            ...prev,
+            ...data,
+            general: { ...prev.general, ...(data.general || {}) },
+            fees: { ...prev.fees, ...(data.fees || {}) },
+            coins: { ...prev.coins, ...(data.coins || {}) },
+            ui: { ...prev.ui, ...(data.ui || {}) },
+            messages: { ...prev.messages, ...(data.messages || {}) },
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch deposit settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSettings()
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/superadmin/deposit-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(settings)
+      })
+      if (res.ok) {
+        showNotification('Deposit settings saved successfully!')
+      } else {
+        showNotification('Failed to save settings', 'error')
+      }
+    } catch (error) {
+      showNotification('Failed to save settings', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCoinToggle = (symbol) => {
+    setSettings(prev => ({
+      ...prev,
+      coins: {
+        ...prev.coins,
+        [symbol]: {
+          ...prev.coins[symbol],
+          isEnabled: !prev.coins[symbol].isEnabled
+        }
+      }
+    }))
+  }
+
+  const handleCoinUpdate = (symbol, field, value) => {
+    setSettings(prev => ({
+      ...prev,
+      coins: {
+        ...prev.coins,
+        [symbol]: {
+          ...prev.coins[symbol],
+          [field]: value
+        }
+      }
+    }))
+  }
+
+  const handleAddCoin = () => {
+    if (!newCoinForm.symbol) {
+      showNotification('Please enter a coin symbol', 'error')
+      return
+    }
+    const symbol = newCoinForm.symbol.toUpperCase()
+    if (settings.coins[symbol]) {
+      showNotification('Coin already exists', 'error')
+      return
+    }
+    setSettings(prev => ({
+      ...prev,
+      coins: {
+        ...prev.coins,
+        [symbol]: {
+          isEnabled: true,
+          minDeposit: newCoinForm.minDeposit,
+          networkFee: newCoinForm.networkFee,
+          confirmations: newCoinForm.confirmations,
+          customLabel: '',
+          customDescription: ''
+        }
+      }
+    }))
+    setNewCoinForm({ symbol: '', minDeposit: 0.001, networkFee: 0.0001, confirmations: 6 })
+    setShowAddCoin(false)
+    showNotification(`${symbol} added successfully`)
+  }
+
+  const handleDeleteCoin = (symbol) => {
+    setSettings(prev => {
+      const newCoins = { ...prev.coins }
+      delete newCoins[symbol]
+      return { ...prev, coins: newCoins }
+    })
+    showNotification(`${symbol} removed`)
+  }
+
+  const sections = [
+    { id: 'general', label: 'General', icon: FiSettings },
+    { id: 'coins', label: 'Cryptocurrencies', icon: FaCoins },
+    { id: 'fees', label: 'Fees', icon: FiDollarSign },
+    { id: 'ui', label: 'UI Customization', icon: FiGrid },
+    { id: 'messages', label: 'Messages', icon: FaComment },
+  ]
+
+  const coinColors = {
+    BTC: 'from-orange-400 to-yellow-500',
+    ETH: 'from-purple-500 to-blue-500',
+    USDT: 'from-green-500 to-emerald-500',
+    SOL: 'from-purple-400 to-pink-500',
+    XRP: 'from-gray-500 to-slate-600',
+    BNB: 'from-yellow-400 to-amber-500',
+    ADA: 'from-blue-500 to-cyan-500',
+    DOGE: 'from-yellow-300 to-yellow-500',
+    DOT: 'from-pink-500 to-rose-500',
+    AVAX: 'from-red-500 to-red-600',
+    MATIC: 'from-purple-600 to-indigo-600',
+    LINK: 'from-blue-400 to-cyan-400',
+  }
+
+  const coinIcons = {
+    BTC: '₿', ETH: 'Ξ', USDT: '₮', SOL: '◎', XRP: '✕', BNB: '◈',
+    ADA: '₳', DOGE: 'Ð', DOT: '●', AVAX: '▲', MATIC: '⬡', LINK: '⬡',
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Deposit Settings</h2>
+          <p className="text-white/50 text-sm mt-1">Customize deposit page appearance and behavior</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-white/50">Status:</span>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
+              settings.isEnabled 
+                ? 'bg-emerald-500/20 text-emerald-400' 
+                : 'bg-red-500/20 text-red-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${settings.isEnabled ? 'bg-emerald-400' : 'bg-red-400'}`} />
+              {settings.isEnabled ? 'Enabled' : 'Disabled'}
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </motion.button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  activeSection === section.id
+                    ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <section.icon className="w-5 h-5" />
+                <span className="font-medium">{section.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="lg:col-span-3">
+          {activeSection === 'general' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <ModernCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">General Settings</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Minimum Deposit (USD)</label>
+                    <input
+                      type="number"
+                      value={settings.general.minDeposit}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, minDeposit: parseFloat(e.target.value) }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Maximum Deposit (USD)</label>
+                    <input
+                      type="number"
+                      value={settings.general.maxDeposit}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, maxDeposit: parseFloat(e.target.value) }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Payment Timeout (minutes)</label>
+                    <input
+                      type="number"
+                      value={settings.general.paymentTimeoutMinutes}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, paymentTimeoutMinutes: parseInt(e.target.value) }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Default Currency</label>
+                    <select
+                      value={settings.general.defaultCurrency}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, defaultCurrency: e.target.value }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Enable Deposits</p>
+                      <p className="text-sm text-white/50">Allow users to make deposits</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({ ...prev, isEnabled: !prev.isEnabled }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.isEnabled ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.isEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Maintenance Mode</p>
+                      <p className="text-sm text-white/50">Temporarily disable deposits with custom message</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({ ...prev, maintenanceMode: !prev.maintenanceMode }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.maintenanceMode ? 'bg-amber-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.maintenanceMode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Auto-Approve Deposits</p>
+                      <p className="text-sm text-white/50">Automatically approve deposits without admin review</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, autoApproveDeposits: !prev.general.autoApproveDeposits }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.general.autoApproveDeposits ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.general.autoApproveDeposits ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Require Proof of Payment</p>
+                      <p className="text-sm text-white/50">Users must upload payment screenshot</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        general: { ...prev.general, requireProofOfPayment: !prev.general.requireProofOfPayment }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.general.requireProofOfPayment ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.general.requireProofOfPayment ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
+
+                {settings.maintenanceMode && (
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium text-white/60 mb-2">Maintenance Message</label>
+                    <textarea
+                      value={settings.maintenanceMessage}
+                      onChange={(e) => setSettings(prev => ({ ...prev, maintenanceMessage: e.target.value }))}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none resize-none"
+                    />
+                  </div>
+                )}
+              </ModernCard>
+            </motion.div>
+          )}
+
+          {activeSection === 'coins' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+              <ModernCard className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Cryptocurrency Settings</h3>
+                    <p className="text-white/50 text-sm">Configure minimum deposits, network fees, and confirmations for each cryptocurrency</p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAddCoin(true)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium flex items-center gap-2"
+                  >
+                    <FaPlus className="w-4 h-4" />
+                    Add New Coin
+                  </motion.button>
+                </div>
+              </ModernCard>
+
+              {showAddCoin && (
+                <ModernCard className="p-6 border-cyan-500/30">
+                  <h4 className="text-white font-semibold mb-4">Add New Cryptocurrency</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-white/50 mb-1">Symbol (e.g., BTC)</label>
+                      <input
+                        type="text"
+                        value={newCoinForm.symbol}
+                        onChange={(e) => setNewCoinForm({ ...newCoinForm, symbol: e.target.value.toUpperCase() })}
+                        placeholder="BTC"
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-white/50 mb-1">Min Deposit</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={newCoinForm.minDeposit}
+                        onChange={(e) => setNewCoinForm({ ...newCoinForm, minDeposit: parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-white/50 mb-1">Network Fee</label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={newCoinForm.networkFee}
+                        onChange={(e) => setNewCoinForm({ ...newCoinForm, networkFee: parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-white/50 mb-1">Confirmations</label>
+                      <input
+                        type="number"
+                        value={newCoinForm.confirmations}
+                        onChange={(e) => setNewCoinForm({ ...newCoinForm, confirmations: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={handleAddCoin}
+                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium"
+                    >
+                      Add Coin
+                    </button>
+                    <button
+                      onClick={() => { setShowAddCoin(false); setNewCoinForm({ symbol: '', minDeposit: 0.001, networkFee: 0.0001, confirmations: 6 }) }}
+                      className="px-4 py-2 rounded-lg bg-white/10 text-white/60 text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </ModernCard>
+              )}
+
+              {Object.keys(settings.coins).map((symbol) => (
+                <motion.div
+                  key={symbol}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-5 rounded-2xl border transition-all ${
+                    settings.coins[symbol].isEnabled
+                      ? 'bg-white/5 border-white/10'
+                      : 'bg-white/5 border-white/5 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${coinColors[symbol] || 'from-gray-500 to-gray-600'} flex items-center justify-center text-white text-xl font-bold`}>
+                        {coinIcons[symbol] || symbol[0]}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-white">{symbol}</h4>
+                        <p className="text-sm text-white/50">{settings.coins[symbol].customLabel || `${symbol} Network`}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDeleteCoin(symbol)}
+                        className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                        title="Remove coin"
+                      >
+                        <FaTrash className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleCoinToggle(symbol)}
+                        className={`w-12 h-6 rounded-full transition-all ${settings.coins[symbol].isEnabled ? 'bg-emerald-500' : 'bg-white/20'}`}
+                      >
+                        <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.coins[symbol].isEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {settings.coins[symbol].isEnabled && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-white/50 mb-1">Min Deposit</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={settings.coins[symbol].minDeposit}
+                          onChange={(e) => handleCoinUpdate(symbol, 'minDeposit', parseFloat(e.target.value))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-white/50 mb-1">Network Fee</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={settings.coins[symbol].networkFee}
+                          onChange={(e) => handleCoinUpdate(symbol, 'networkFee', parseFloat(e.target.value))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-white/50 mb-1">Confirmations</label>
+                        <input
+                          type="number"
+                          value={settings.coins[symbol].confirmations}
+                          onChange={(e) => handleCoinUpdate(symbol, 'confirmations', parseInt(e.target.value))}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-white/50 mb-1">Custom Label</label>
+                        <input
+                          type="text"
+                          value={settings.coins[symbol].customLabel || ''}
+                          onChange={(e) => handleCoinUpdate(symbol, 'customLabel', e.target.value)}
+                          placeholder="e.g. Bitcoin"
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-cyan-500/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {activeSection === 'fees' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <ModernCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Fee Configuration</h3>
+                
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Deposit Fee Type</label>
+                    <select
+                      value={settings.fees.depositFeeType}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        fees: { ...prev.fees, depositFeeType: e.target.value }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    >
+                      <option value="none">No Fee</option>
+                      <option value="fixed">Fixed Amount</option>
+                      <option value="percent">Percentage</option>
+                    </select>
+                  </div>
+
+                  {settings.fees.depositFeeType === 'fixed' && (
+                    <div>
+                      <label className="block text-sm font-medium text-white/60 mb-2">Fixed Fee Amount</label>
+                      <input
+                        type="number"
+                        value={settings.fees.depositFee}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          fees: { ...prev.fees, depositFee: parseFloat(e.target.value) }
+                        }))}
+                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {settings.fees.depositFeeType === 'percent' && (
+                    <div>
+                      <label className="block text-sm font-medium text-white/60 mb-2">Fee Percentage</label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="number"
+                          step="0.1"
+                          max="100"
+                          value={settings.fees.depositFeePercent}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            fees: { ...prev.fees, depositFeePercent: parseFloat(e.target.value) }
+                          }))}
+                          className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                        />
+                        <span className="text-white/60">%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ModernCard>
+            </motion.div>
+          )}
+
+          {activeSection === 'ui' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <ModernCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">UI Customization</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Primary Color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={settings.ui.primaryColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          ui: { ...prev.ui, primaryColor: e.target.value }
+                        }))}
+                        className="w-12 h-12 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={settings.ui.primaryColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          ui: { ...prev.ui, primaryColor: e.target.value }
+                        }))}
+                        className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Secondary Color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={settings.ui.secondaryColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          ui: { ...prev.ui, secondaryColor: e.target.value }
+                        }))}
+                        className="w-12 h-12 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={settings.ui.secondaryColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          ui: { ...prev.ui, secondaryColor: e.target.value }
+                        }))}
+                        className="flex-1 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Show Timer</p>
+                      <p className="text-sm text-white/50">Display countdown timer on deposit page</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, showTimer: !prev.ui.showTimer }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.ui.showTimer ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.ui.showTimer ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Show Progress Steps</p>
+                      <p className="text-sm text-white/50">Display step indicator</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, showProgressSteps: !prev.ui.showProgressSteps }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.ui.showProgressSteps ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.ui.showProgressSteps ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Show QR Code</p>
+                      <p className="text-sm text-white/50">Display QR code for wallet address</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, showQRCode: !prev.ui.showQRCode }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.ui.showQRCode ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.ui.showQRCode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                    <div>
+                      <p className="font-medium text-white">Show Fee Info</p>
+                      <p className="text-sm text-white/50">Display network fee information</p>
+                    </div>
+                    <button
+                      onClick={() => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, showFeeInfo: !prev.ui.showFeeInfo }
+                      }))}
+                      className={`w-12 h-6 rounded-full transition-all ${settings.ui.showFeeInfo ? 'bg-cyan-500' : 'bg-white/20'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-all ${settings.ui.showFeeInfo ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
+              </ModernCard>
+
+              <ModernCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Button & Text Labels</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Confirm Button Text</label>
+                    <input
+                      type="text"
+                      value={settings.ui.confirmButtonText}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, confirmButtonText: e.target.value }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Header Title</label>
+                    <input
+                      type="text"
+                      value={settings.ui.headerTitle}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, headerTitle: e.target.value }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Header Subtitle</label>
+                    <input
+                      type="text"
+                      value={settings.ui.headerSubtitle}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, headerSubtitle: e.target.value }
+                      }))}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </ModernCard>
+            </motion.div>
+          )}
+
+          {activeSection === 'messages' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <ModernCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-6">Custom Messages</h3>
+                <p className="text-white/50 text-sm mb-6">Use {'{amount}'} and {'{symbol}'} as placeholders</p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Welcome Title</label>
+                    <input
+                      type="text"
+                      value={settings.messages.welcomeTitle}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        messages: { ...prev.messages, welcomeTitle: e.target.value }
+                      }))}
+                      placeholder="Deposit {amount} {symbol}"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Welcome Subtitle</label>
+                    <input
+                      type="text"
+                      value={settings.messages.welcomeSubtitle}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        messages: { ...prev.messages, welcomeSubtitle: e.target.value }
+                      }))}
+                      placeholder="Send the exact amount to complete your deposit"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Warning Text</label>
+                    <input
+                      type="text"
+                      value={settings.messages.warningText}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        messages: { ...prev.messages, warningText: e.target.value }
+                      }))}
+                      placeholder="Only send {symbol} to this address..."
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Success Title</label>
+                    <input
+                      type="text"
+                      value={settings.messages.successTitle}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        messages: { ...prev.messages, successTitle: e.target.value }
+                      }))}
+                      placeholder="Deposit Complete"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/60 mb-2">Success Message</label>
+                    <input
+                      type="text"
+                      value={settings.ui.successMessage}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        ui: { ...prev.ui, successMessage: e.target.value }
+                      }))}
+                      placeholder="Deposit submitted successfully! Waiting for admin approval."
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-cyan-500/50 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </ModernCard>
+            </motion.div>
+          )}
+        </div>
       </div>
     </motion.div>
   )

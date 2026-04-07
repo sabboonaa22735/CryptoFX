@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FaSearch, FaChartLine, FaArrowUp, FaArrowDown, FaStar, FaFilter } from 'react-icons/fa'
-import { io } from 'socket.io-client'
+import { useSocket } from '../contexts/SocketContext'
 
 const Stocks = () => {
   const [stocks, setStocks] = useState([])
@@ -43,23 +43,26 @@ const Stocks = () => {
     }
   }, [stocksData, sectorsData])
 
+  const { subscribe, unsubscribe, on } = useSocket()
+
   useEffect(() => {
-    const socket = io()
-    socket.emit('subscribe', ['stocks'])
+    subscribe(['stocks'])
     
-    socket.on('stocks-update', (data) => {
+    const handleUpdate = (data) => {
       const dataMap = {}
       data.forEach(item => {
         dataMap[item.symbol] = item
       })
       setRealtimeData(dataMap)
-    })
+    }
+
+    const unsubscribeHandler = on('stocks-update', handleUpdate)
 
     return () => {
-      socket.emit('unsubscribe', ['stocks'])
-      socket.disconnect()
+      unsubscribe(['stocks'])
+      unsubscribeHandler()
     }
-  }, [])
+  }, [subscribe, unsubscribe, on])
 
   const filteredStocks = stocks.filter(stock => {
     const searchLower = searchTerm.toLowerCase()

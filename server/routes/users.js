@@ -7,7 +7,21 @@ router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    res.json({
+      ...user.toObject(),
+      wallet: {
+        balance: user.wallet?.balance || 0,
+        currency: user.wallet?.currency || 'USD',
+        deposits: user.walletStats?.totalDeposit || user.wallet?.deposits || 0,
+        withdrawals: user.walletStats?.totalWithdraw || user.wallet?.withdrawals || 0
+      },
+      walletStats: {
+        availableBalance: user.walletStats?.availableBalance || user.wallet?.balance || 0,
+        totalDeposit: user.walletStats?.totalDeposit || user.wallet?.deposits || 0,
+        totalWithdraw: user.walletStats?.totalWithdraw || user.wallet?.withdrawals || 0,
+        totalProfit: user.walletStats?.totalProfit || 0
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

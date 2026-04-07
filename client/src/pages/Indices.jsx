@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { FaChartLine, FaChartBar, FaCoins, FaArrowUp, FaArrowDown, FaSearch, FaFilter } from 'react-icons/fa'
-import { io } from 'socket.io-client'
+import { useSocket } from '../contexts/SocketContext'
 import { LoadingSkeleton, ErrorState, EmptyState } from '../components/ui/StatusComponents'
 
 const Indices = () => {
@@ -42,31 +42,36 @@ const Indices = () => {
     }
   }, [indicesData, commoditiesData])
 
-  useEffect(() => {
-    const socket = io()
-    socket.emit('subscribe', ['indices', 'futures', 'commodities'])
-    
-    socket.on('indices-update', (data) => {
-      const dataMap = {}
-      data.forEach(item => {
-        dataMap[item.symbol] = item
-      })
-      setRealtimeData(prev => ({ ...prev, ...dataMap }))
-    })
+  const { subscribe, unsubscribe, on } = useSocket()
 
-    socket.on('commodities-update', (data) => {
+  useEffect(() => {
+    subscribe(['indices', 'commodities'])
+    
+    const handleIndicesUpdate = (data) => {
       const dataMap = {}
       data.forEach(item => {
         dataMap[item.symbol] = item
       })
       setRealtimeData(prev => ({ ...prev, ...dataMap }))
-    })
+    }
+
+    const handleCommoditiesUpdate = (data) => {
+      const dataMap = {}
+      data.forEach(item => {
+        dataMap[item.symbol] = item
+      })
+      setRealtimeData(prev => ({ ...prev, ...dataMap }))
+    }
+
+    const unsubIndices = on('indices-update', handleIndicesUpdate)
+    const unsubCommodities = on('commodities-update', handleCommoditiesUpdate)
 
     return () => {
-      socket.emit('unsubscribe', ['indices', 'futures', 'commodities'])
-      socket.disconnect()
+      unsubscribe(['indices', 'commodities'])
+      unsubIndices()
+      unsubCommodities()
     }
-  }, [])
+  }, [subscribe, unsubscribe, on])
 
   const filteredIndices = indices.filter(item => {
     const searchLower = searchTerm.toLowerCase()
