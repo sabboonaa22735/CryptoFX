@@ -403,22 +403,8 @@ export default function Wallet() {
                 <div className="space-y-3">
                   {displayTransactions.slice(0, 10).map((tx) => {
                     const isDeposit = tx.type === 'deposit'
-                    const isTrade = tx.type === 'trade'
-                    const isWithdrawal = tx.type === 'withdrawal'
                     const isPending = tx.status === 'pending'
                     const isRejected = tx.status === 'rejected'
-                    
-                    const getTypeIcon = () => {
-                      if (isDeposit) return <FiArrowDown className={`w-5 h-5 ${isPending ? 'text-yellow-500' : isRejected ? 'text-red-500' : 'text-green-500'}`} />
-                      if (isWithdrawal) return <FiArrowUp className="w-5 h-5 text-red-500" />
-                      if (isTrade) return <FiTrendingUp className="w-5 h-5 text-blue-500" />
-                      return <FiArrowUp className="w-5 h-5 text-gray-500" />
-                    }
-                    
-                    const getTypeLabel = () => {
-                      if (isTrade) return tx.notes || 'Trade'
-                      return tx.type
-                    }
                     
                     return (
                       <div
@@ -435,15 +421,17 @@ export default function Wallet() {
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                             isDeposit 
                               ? isPending ? 'bg-yellow-500/20' : isRejected ? 'bg-red-500/20' : 'bg-green-500/20'
-                              : isTrade
-                                ? 'bg-blue-500/20'
-                                : 'bg-red-500/20'
+                              : 'bg-red-500/20'
                           }`}>
-                            {getTypeIcon()}
+                            {isDeposit ? (
+                              <FiArrowDown className={`w-5 h-5 ${isPending ? 'text-yellow-500' : isRejected ? 'text-red-500' : 'text-green-500'}`} />
+                            ) : (
+                              <FiArrowUp className="w-5 h-5 text-red-500" />
+                            )}
                           </div>
                           <div>
                             <p className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                              {getTypeLabel()}
+                              {tx.type}
                             </p>
                             <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                               {new Date(tx.createdAt).toLocaleDateString()}
@@ -454,11 +442,9 @@ export default function Wallet() {
                           <p className={`font-semibold ${
                             isDeposit 
                               ? isPending ? 'text-yellow-500' : isRejected ? 'text-red-500' : 'text-green-500'
-                              : isTrade
-                                ? 'text-blue-500'
-                                : theme === 'dark' ? 'text-white' : 'text-gray-900'
+                              : theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>
-                            {(isDeposit || isTrade) ? '+' : '-'}{formatCurrency(tx.amount)}
+                            {isDeposit ? '+' : '-'}{formatCurrency(tx.amount)}
                           </p>
                           <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
                             tx.status === 'completed'

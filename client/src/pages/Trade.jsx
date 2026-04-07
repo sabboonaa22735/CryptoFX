@@ -158,8 +158,15 @@ export default function Trade() {
   const calculatePnL = () => {
     if (!amount || parseFloat(amount) <= 0 || !selectedDuration) return { profit: 0, total: 0 }
     const investAmount = parseFloat(amount)
-    const profit = (investAmount * selectedDuration.returnPercent * leverage) / 100
-    return { profit, total: side === 'buy' ? investAmount : profit }
+    const returnPercent = selectedDuration.returnPercent
+    
+    if (side === 'buy') {
+      const profit = (investAmount * returnPercent * leverage) / 100
+      return { profit, total: investAmount }
+    } else {
+      const potentialLoss = (investAmount * returnPercent * leverage) / 100
+      return { profit: -potentialLoss, total: potentialLoss }
+    }
   }
 
   const { profit, total } = calculatePnL()
@@ -1033,7 +1040,7 @@ export default function Trade() {
                         animate={{ scale: 1 }}
                         className={`text-sm font-bold ${side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}
                       >
-                        +{(selectedDuration.returnPercent * leverage).toFixed(2)}%
+                        {side === 'buy' ? '+' : '-'}{(selectedDuration.returnPercent * leverage).toFixed(2)}%
                       </motion.span>
                     </div>
                     <div className="flex justify-between">
@@ -1045,7 +1052,7 @@ export default function Trade() {
                     <div className={`h-px my-2 ${theme === 'dark' ? 'bg-[var(--border-color)]' : 'bg-gray-200'}`} />
                     <div className="flex justify-between">
                       <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {side === 'buy' ? 'Est. Profit' : 'Est. Payout'}
+                        {side === 'buy' ? 'Est. Profit' : 'Est. Loss'}
                       </span>
                       <motion.span 
                         initial={{ scale: 1.1 }}

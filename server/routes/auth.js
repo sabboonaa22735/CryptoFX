@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { generateToken, generateRefreshToken, auth } = require('../middleware/auth');
+const nodemailer = require('nodemailer');
 
 const ADMIN_EMAIL = 'admin@platform.com';
 const ADMIN_PASSWORD = 'Admin@123';
@@ -147,8 +148,36 @@ function generateOTP() {
 }
 
 async function sendOTPEmail(email, otp) {
-  console.log(`[OTP] Sending to ${email}: ${otp}`);
-  return true;
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || 'CryptoFX <noreply@cryptofx.com>',
+    to: email,
+    subject: 'CryptoFX Password Reset OTP',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p>You requested a password reset for your CryptoFX account.</p>
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="font-size: 14px; color: #666; margin: 0 0 10px 0;">Your OTP Code:</p>
+          <p style="font-size: 32px; font-weight: bold; color: #1a73e8; margin: 0; letter-spacing: 8px;">${otp}</p>
+        </div>
+        <p style="color: #666; font-size: 14px;">This code will expire in <strong>10 minutes</strong>.</p>
+        <p style="color: #888; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`[OTP] Email sent to ${email}`);
 }
 
 router.post('/forgot-password', async (req, res) => {
@@ -171,7 +200,12 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordOTPExp = otpExpiry;
     await user.save();
     
-    await sendOTPEmail(email, otp);
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (emailError) {
+      console.error('[Email Error]', emailError.message);
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again later.' });
+    }
     
     res.json({ success: true, message: 'OTP sent to your email!' });
   } catch (error) {

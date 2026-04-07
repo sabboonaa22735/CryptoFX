@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { auth, adminAuth } = require('../middleware/auth');
 const Trade = require('../models/Trade');
-const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { emitAdminUpdate } = require('../sockets');
 
@@ -66,19 +65,6 @@ router.post('/buy', auth, async (req, res) => {
     });
     
     await trade.save();
-
-    const transaction = new Transaction({
-      user: req.user.id,
-      type: 'trade',
-      amount: totalReturn,
-      currency: 'USD',
-      method: 'buy',
-      status: 'completed',
-      coinSymbol: symbol,
-      tradeId: trade._id,
-      notes: `Buy ${numericAmount} ${symbol} @ $${numericPrice}`
-    });
-    await transaction.save();
 
     if (!user.portfolio.find(p => p.symbol === symbol)) {
       user.portfolio.push({ symbol, amount: numericAmount, avgPrice: numericPrice });
@@ -171,19 +157,6 @@ router.post('/sell', auth, async (req, res) => {
     });
     
     await trade.save();
-
-    const sellTransaction = new Transaction({
-      user: req.user.id,
-      type: 'trade',
-      amount: sellValue,
-      currency: 'USD',
-      method: 'sell',
-      status: 'completed',
-      coinSymbol: symbol,
-      tradeId: trade._id,
-      notes: `Sell ${numericAmount} ${symbol} @ $${numericPrice}`
-    });
-    await sellTransaction.save();
 
     console.log('Sell trade executed - Profit/Loss:', profitLoss);
     console.log('Sell trade executed - Total Profit updated:', user.walletStats.totalProfit);

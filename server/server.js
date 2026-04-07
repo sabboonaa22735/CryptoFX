@@ -76,13 +76,28 @@ app.use('/uploads', express.static(uploadsDir));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50000
+  max: 10000
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/', limiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+});
 
-app.use('/api/auth', authRoutes);
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20
+});
+
+const loginSkip = (req) => {
+  return req.path.includes('/login');
+};
+
+app.use('/api/superadmin/login', (req, res, next) => next());
+app.use('/api/superadmin', superadminRoutes);
+app.use('/api/auth/login', (req, res, next) => next());
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/', limiter);
 app.use('/api/users', userRoutes);
 app.use('/api/markets', marketRoutes);
 app.use('/api/trades', tradeRoutes);
