@@ -719,12 +719,12 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
     const fetchAddress = async () => {
       try {
         const upperCoin = coin.toUpperCase()
-        const res = await api.get(`/api/deposits/deposit-addresses/${upperCoin}`).catch(() => ({ data: null }))
+        const res = await api.get(`/deposits/deposit-addresses/${upperCoin}`).catch(() => ({ data: null }))
         if (res.data) {
           setCurrentAddress(res.data.address || '')
           setCurrentMemo(res.data.memo || '')
         } else {
-          const allRes = await api.get('/api/deposits/deposit-addresses').catch(() => ({ data: null }))
+          const allRes = await api.get('/deposits/deposit-addresses').catch(() => ({ data: null }))
           if (allRes.data && Array.isArray(allRes.data)) {
             const addr = allRes.data.find(a => a.symbol === upperCoin)
             if (addr) {
@@ -744,7 +744,7 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
 
   const fetchDepositSettings = async () => {
     try {
-      const res = await api.get('/api/deposits/settings').catch(() => ({ data: null }))
+      const res = await api.get('/deposits/settings').catch(() => ({ data: null }))
       if (res.data) {
         setDepositSettings(res.data)
       }

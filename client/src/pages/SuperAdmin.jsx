@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../store/authStore'
 
 const decodeToken = (token) => {
   try {
@@ -45,6 +46,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import { useThemeStore } from '../store/themeStore'
 import { useTransactionStore } from '../store/transactionStore'
+import { useAuthStore } from '../store/authStore'
 import ThemeToggle from '../components/ui/ThemeToggle'
 
 const COIN_COLORS = {
@@ -1279,6 +1281,8 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', role: 'user', password: '', balance: '', deposits: '', withdrawals: '', avatar: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
+  const { user } = useAuthStore()
+  const isSuperAdmin = user?.role === 'superadmin'
 
   useEffect(() => {
     if (Array.isArray(initialUsers) && initialUsers.length > 0) {
@@ -1621,13 +1625,15 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
                   <input type="number" step="0.01" value={formData.profit} onChange={e => setFormData({...formData, profit: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Role</label>
-                    <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500">
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
+                  {isSuperAdmin && (
+                    <div>
+                      <label className="block text-sm text-white/60 mb-2">Role</label>
+                      <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm text-white/60 mb-2">Status</label>
                     <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500">
@@ -5236,16 +5242,41 @@ const SupportTab = ({ showNotification }) => {
   const [showReplyModal, setShowReplyModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [tickets, setTickets] = useState([
-    { id: 'TKT-001', subject: 'Unable to withdraw funds', user: 'John Doe', email: 'john@example.com', status: 'open', priority: 'high', created: '2024-03-25', lastUpdate: '2 hours ago', messages: 3 },
-    { id: 'TKT-002', subject: 'KYC verification pending', user: 'Sarah Smith', email: 'sarah@example.com', status: 'pending', priority: 'medium', created: '2024-03-24', lastUpdate: '5 hours ago', messages: 5 },
-    { id: 'TKT-003', subject: 'API integration issue', user: 'Mike Johnson', email: 'mike@example.com', status: 'resolved', priority: 'low', created: '2024-03-23', lastUpdate: '1 day ago', messages: 8 },
-    { id: 'TKT-004', subject: 'Account locked', user: 'Emily Davis', email: 'emily@example.com', status: 'open', priority: 'high', created: '2024-03-26', lastUpdate: '30 min ago', messages: 2 },
-  ])
+  const [tickets, setTickets] = useState([])
+  const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({ subject: '', user: '', email: '', priority: 'medium' })
 
+  useEffect(() => {
+    fetchTickets()
+  }, [])
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true)
+      const { data } = await api.get('/superadmin/tickets')
+      const formattedTickets = data.tickets.map(ticket => ({
+        id: ticket._id,
+        subject: ticket.subject,
+        user: ticket.user?.name || 'Unknown User',
+        email: ticket.user?.email || '',
+        status: ticket.status === 'in_progress' ? 'pending' : ticket.status,
+        priority: ticket.priority,
+        created: new Date(ticket.createdAt).toISOString().split('T')[0],
+        lastUpdate: new Date(ticket.updatedAt).toLocaleString(),
+        messages: ticket.messages?.length || 0,
+        rawTicket: ticket
+      }))
+      setTickets(formattedTickets)
+    } catch (error) {
+      console.error('Failed to fetch tickets:', error)
+      showNotification('Failed to load tickets', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) || ticket.user.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = ticket.subject?.toLowerCase().includes(searchTerm.toLowerCase()) || ticket.user?.toLowerCase().includes(searchTerm.toLowerCase()) || ticket.email?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -5253,15 +5284,22 @@ const SupportTab = ({ showNotification }) => {
   const stats = {
     open: tickets.filter(t => t.status === 'open').length,
     pending: tickets.filter(t => t.status === 'pending').length,
-    resolved: tickets.filter(t => t.status === 'resolved').length,
+    resolved: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length,
     total: tickets.length,
   }
 
-  const handleSendReply = () => {
-    if (newMessage.trim()) {
-      showNotification('Reply sent successfully')
-      setNewMessage('')
-      setShowReplyModal(false)
+  const handleSendReply = async () => {
+    if (newMessage.trim() && selectedTicket) {
+      try {
+        await api.post(`/support/${selectedTicket.id}/admin-reply`, { message: newMessage })
+        showNotification('Reply sent successfully')
+        setNewMessage('')
+        setShowReplyModal(false)
+        fetchTickets()
+      } catch (error) {
+        console.error('Failed to send reply:', error)
+        showNotification('Failed to send reply', 'error')
+      }
     }
   }
 
@@ -5274,18 +5312,29 @@ const SupportTab = ({ showNotification }) => {
     showNotification('Ticket created successfully')
   }
 
-  const handleResolve = (ticket) => {
-    const updated = tickets.map(t => t.id === ticket.id ? { ...t, status: 'resolved', lastUpdate: 'Just now' } : t)
-    setTickets(updated)
-    showNotification(`Ticket ${ticket.id} marked as resolved`)
+  const handleResolve = async (ticket) => {
+    try {
+      await api.put(`/support/${ticket.id}/close`)
+      showNotification(`Ticket ${ticket.id} marked as resolved`)
+      fetchTickets()
+    } catch (error) {
+      console.error('Failed to resolve ticket:', error)
+      showNotification('Failed to resolve ticket', 'error')
+    }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedTicket) return
-    setTickets(tickets.filter(t => t.id !== selectedTicket.id))
-    setShowDeleteModal(false)
-    setSelectedTicket(null)
-    showNotification('Ticket deleted successfully')
+    try {
+      await api.delete(`/superadmin/tickets/${selectedTicket.id}`)
+      setTickets(tickets.filter(t => t.id !== selectedTicket.id))
+      setShowDeleteModal(false)
+      setSelectedTicket(null)
+      showNotification('Ticket deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete ticket:', error)
+      showNotification('Failed to delete ticket', 'error')
+    }
   }
 
   return (
@@ -5362,7 +5411,18 @@ const SupportTab = ({ showNotification }) => {
             </div>
 
             <div className="space-y-3">
-              {filteredTickets.map((ticket) => (
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-white/60">Loading tickets...</p>
+                </div>
+              ) : filteredTickets.length === 0 ? (
+                <div className="text-center py-12">
+                  <FaTicketAlt className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                  <p className="text-white/60">No tickets found</p>
+                </div>
+              ) : (
+              filteredTickets.map((ticket) => (
                 <motion.div key={ticket.id} whileHover={{ scale: 1.01, x: 4 }} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-pink-500/30 transition-all">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
@@ -5387,7 +5447,8 @@ const SupportTab = ({ showNotification }) => {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+              ))
+              )}
             </div>
           </ModernCard>
         </>
@@ -5520,7 +5581,9 @@ const SuperAdmin = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const { initTheme } = useThemeStore()
+  const { user } = useAuthStore()
   const navigate = useNavigate()
+  const isSuperAdmin = user?.role === 'superadmin'
 
   useEffect(() => {
     initTheme()

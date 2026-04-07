@@ -80,28 +80,10 @@ export const useAuthStore = create(
           })
           
           try {
-            const walletRes = await api.get('/wallet/global-stats')
-            if (walletRes.data) {
-              set((state) => ({
-                user: {
-                  ...state.user,
-                  wallet: {
-                    balance: walletRes.data.availableBalance || walletRes.data.balance || state.user?.wallet?.balance || 0,
-                    deposits: walletRes.data.totalDeposit || state.user?.wallet?.deposits || 0,
-                    withdrawals: walletRes.data.totalWithdraw || state.user?.wallet?.withdrawals || 0,
-                    currency: 'USD'
-                  },
-                  walletStats: {
-                    availableBalance: walletRes.data.availableBalance || 0,
-                    totalDeposit: walletRes.data.totalDeposit || 0,
-                    totalWithdraw: walletRes.data.totalWithdraw || 0,
-                    totalProfit: walletRes.data.totalProfit || 0
-                  }
-                }
-              }))
-            }
-          } catch (walletErr) {
-            console.warn('Failed to fetch wallet data on login:', walletErr)
+            const userRes = await api.get('/users/me')
+            set({ user: { ...userRes.data, token: data.token, refreshToken: data.refreshToken } })
+          } catch (userErr) {
+            console.warn('Failed to fetch fresh user data:', userErr)
           }
           
           return { success: true }
@@ -143,9 +125,31 @@ export const useAuthStore = create(
       fetchUser: async () => {
         try {
           const { data } = await api.get('/users/me')
-          set({ user: data })
+          set((state) => ({ 
+            user: { 
+              ...state.user, 
+              ...data,
+              token: state.token,
+              refreshToken: state.refreshToken
+            } 
+          }))
         } catch (error) {
           console.error('Failed to fetch user:', error)
+        }
+      },
+
+      refreshUser: async () => {
+        try {
+          const { data } = await api.get('/users/me')
+          set((state) => ({ 
+            user: { 
+              ...data,
+              token: state.token,
+              refreshToken: state.refreshToken
+            } 
+          }))
+        } catch (error) {
+          console.error('Failed to refresh user:', error)
         }
       },
 
@@ -181,7 +185,99 @@ export const useAuthStore = create(
         }
       },
 
-      clearError: () => set({ error: null })
+      clearError: () => set({ error: null }),
+
+      googleLogin: async (googleToken, name, email, avatar) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await api.post('/auth/google', { googleToken, name, email, avatar });
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          set({
+            user: data.user,
+            token: data.token,
+            refreshToken: data.refreshToken,
+            isLoading: false
+          });
+
+          try {
+            const walletRes = await api.get('/wallet/global-stats');
+            if (walletRes.data) {
+              set((state) => ({
+                user: {
+                  ...state.user,
+                  wallet: {
+                    balance: walletRes.data.availableBalance || 0,
+                    deposits: walletRes.data.totalDeposit || 0,
+                    withdrawals: walletRes.data.totalWithdraw || 0,
+                    currency: 'USD'
+                  },
+                  walletStats: {
+                    availableBalance: walletRes.data.availableBalance || 0,
+                    totalDeposit: walletRes.data.totalDeposit || 0,
+                    totalWithdraw: walletRes.data.totalWithdraw || 0,
+                    totalProfit: walletRes.data.totalProfit || 0
+                  }
+                }
+              }));
+            }
+          } catch (walletErr) {
+            console.warn('Failed to fetch wallet data on Google login:', walletErr);
+          }
+
+          return { success: true };
+        } catch (error) {
+          const message = error.response?.data?.message || 'Google authentication failed';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      },
+
+      appleLogin: async (appleToken, name, email) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await api.post('/auth/apple', { appleToken, name, email });
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          set({
+            user: data.user,
+            token: data.token,
+            refreshToken: data.refreshToken,
+            isLoading: false
+          });
+
+          try {
+            const walletRes = await api.get('/wallet/global-stats');
+            if (walletRes.data) {
+              set((state) => ({
+                user: {
+                  ...state.user,
+                  wallet: {
+                    balance: walletRes.data.availableBalance || 0,
+                    deposits: walletRes.data.totalDeposit || 0,
+                    withdrawals: walletRes.data.totalWithdraw || 0,
+                    currency: 'USD'
+                  },
+                  walletStats: {
+                    availableBalance: walletRes.data.availableBalance || 0,
+                    totalDeposit: walletRes.data.totalDeposit || 0,
+                    totalWithdraw: walletRes.data.totalWithdraw || 0,
+                    totalProfit: walletRes.data.totalProfit || 0
+                  }
+                }
+              }));
+            }
+          } catch (walletErr) {
+            console.warn('Failed to fetch wallet data on Apple login:', walletErr);
+          }
+
+          return { success: true };
+        } catch (error) {
+          const message = error.response?.data?.message || 'Apple authentication failed';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      }
     }),
     {
       name: 'auth-storage',

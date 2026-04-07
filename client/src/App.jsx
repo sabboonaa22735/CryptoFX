@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from './store/authStore'
@@ -16,6 +17,7 @@ import Support from './pages/Support'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import SuperAdmin from './pages/SuperAdmin'
+import Admin from './pages/Admin'
 import DepositConfirmation from './pages/DepositConfirmation'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -80,6 +82,24 @@ const PrivateRoute = ({ children }) => {
   return children
 }
 
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user, fetchUser } = useAuthStore()
+  
+  useEffect(() => {
+    fetchUser()
+  }, [fetchUser])
+  
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />
+  }
+  
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return children
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -92,7 +112,8 @@ function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-          <Route path="/superadmin" element={<SuperAdmin />} />
+          <Route path="/superadmin" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
+          <Route path="/admin" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
           
           <Route path="/" element={<Layout />}>
             <Route path="dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

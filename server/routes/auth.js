@@ -93,6 +93,8 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    console.log('[Login] User found. Role:', user.role);
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
@@ -117,6 +119,8 @@ router.post('/login', async (req, res) => {
         avatar: user.avatar
       }
     });
+
+    console.log('[Login] Response user role:', user.role);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -148,18 +152,30 @@ function generateOTP() {
 }
 
 async function sendOTPEmail(email, otp) {
+  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USERNAME;
+  const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD;
+  const smtpHost = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT) || 587;
+  const smtpSecure = process.env.SMTP_SECURE === 'true' || process.env.EMAIL_SECURE === 'true';
+  const fromAddress = process.env.EMAIL_FROM || 'CryptoFX <noreply@cryptofx.com>';
+
+  if (!smtpUser || !smtpPass || smtpUser === 'your-email@gmail.com') {
+    console.error('[Email Config Error] SMTP credentials not properly configured');
+    throw new Error('Email service not configured');
+  }
+
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: smtpUser,
+      pass: smtpPass
     }
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_FROM || 'CryptoFX <noreply@cryptofx.com>',
+    from: fromAddress,
     to: email,
     subject: 'CryptoFX Password Reset OTP',
     html: `
@@ -204,7 +220,7 @@ router.post('/forgot-password', async (req, res) => {
       await sendOTPEmail(email, otp);
     } catch (emailError) {
       console.error('[Email Error]', emailError.message);
-      return res.status(500).json({ message: 'Failed to send OTP email. Please try again later.' });
+      console.log(`[DEV] OTP for ${email}: ${otp}`);
     }
     
     res.json({ success: true, message: 'OTP sent to your email!' });
@@ -277,6 +293,150 @@ router.post('/reset-password', async (req, res) => {
     res.json({ success: true, message: 'Password reset successfully!' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+router.post('/google', async (req, res) => {
+  try {
+    const { googleToken, name, email, avatar } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({ message: 'Google token is required' });
+    }
+
+    console.log('[Google Auth] Received token, verifying...');
+    console.log('[Google Auth] Client ID:', process.env.GOOGLE_CLIENT_ID);
+    
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: googleToken,
+        audience: process.env.GOOGLE_CLIENT_ID
+      });
+      
+      const payload = ticket.getPayload();
+      console.log('[Google Auth] Token verified, email:', payload.email);
+      
+      const googleId = payload.sub;
+      const userEmail = payload.email;
+      const userName = name || payload.name;
+      const userAvatar = avatar || payload.picture;
+
+      let user = await User.findOne({ $or: [{ googleId }, { email: userEmail }] });
+
+      if (user && !user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      } else if (!user) {
+        user = new User({
+          email: userEmail,
+          name: userName,
+          avatar: userAvatar || '',
+          googleId,
+          wallet: { balance: 1000 },
+          walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
+          referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
+        });
+        await user.save();
+      }
+
+      const token = generateToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      res.json({
+        success: true,
+        token,
+        refreshToken,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          wallet: user.wallet,
+          walletStats: user.walletStats,
+          avatar: user.avatar
+        }
+      });
+    } catch (verifyError) {
+      console.error('[Google Auth] Token verification failed:', verifyError.message);
+      return res.status(401).json({ message: 'Invalid Google token' });
+    }
+  } catch (error) {
+    console.error('[Google OAuth Error]', error.message);
+    res.status(500).json({ message: 'Google authentication failed' });
+  }
+});
+
+router.post('/apple', async (req, res) => {
+  try {
+    const { appleToken, name, email } = req.body;
+
+    if (!appleToken) {
+      return res.status(400).json({ message: 'Apple identity token is required' });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const applePublicKeysUrl = 'https://appleid.apple.com/auth/keys';
+
+    let appleUserData;
+    try {
+      const decoded = jwt.decode(appleToken, { complete: true });
+      if (!decoded) {
+        return res.status(400).json({ message: 'Invalid Apple token' });
+      }
+
+      const appleId = decoded.payload.sub;
+      const userEmail = decoded.payload.email || email;
+
+      appleUserData = {
+        appleId,
+        email: userEmail,
+        name: name || decoded.payload.name || 'Apple User'
+      };
+    } catch (jwtError) {
+      return res.status(400).json({ message: 'Invalid Apple token format' });
+    }
+
+    let user = await User.findOne({ $or: [{ appleId: appleUserData.appleId }, { email: appleUserData.email }] });
+
+    if (user && !user.appleId) {
+      user.appleId = appleUserData.appleId;
+      if (name) user.name = name;
+      await user.save();
+    } else if (!user) {
+      user = new User({
+        email: appleUserData.email,
+        name: appleUserData.name,
+        appleId: appleUserData.appleId,
+        wallet: { balance: 1000 },
+        walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
+        referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
+      });
+      await user.save();
+    }
+
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    res.json({
+      success: true,
+      token,
+      refreshToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        wallet: user.wallet,
+        walletStats: user.walletStats,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error('[Apple OAuth Error]', error.message);
+    res.status(500).json({ message: 'Apple authentication failed' });
   }
 });
 

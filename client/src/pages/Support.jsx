@@ -96,39 +96,52 @@ export default function Support() {
     }
   }
 
-  const handleCreateTicket = (e) => {
+  const handleCreateTicket = async (e) => {
     e.preventDefault()
     if (!newTicket.subject || !newTicket.message) return
     
     setSubmitting(true)
-    const ticket = {
-      _id: 'TKT' + Date.now(),
-      subject: newTicket.subject,
-      category: newTicket.category,
-      priority: newTicket.priority,
-      status: 'open',
-      createdAt: new Date(),
-      messages: [{ sender: 'me', message: newTicket.message, timestamp: new Date(), isAdmin: false }]
-    }
     
-    setTimeout(() => {
+    try {
+      const { data } = await api.post('/support', {
+        subject: newTicket.subject,
+        category: newTicket.category,
+        priority: newTicket.priority,
+        message: newTicket.message
+      })
+      
+      const ticket = {
+        _id: data.ticket._id,
+        subject: data.ticket.subject,
+        category: data.ticket.category,
+        priority: data.ticket.priority,
+        status: data.ticket.status,
+        createdAt: data.ticket.createdAt,
+        messages: data.ticket.messages
+      }
+      
       setTickets([ticket, ...tickets])
       setShowNewTicket(false)
       setNewTicket({ subject: '', category: 'general', priority: 'medium', message: '' })
-      setSubmitting(false)
       setSelectedTicket(ticket)
       notify('Ticket created successfully!')
-    }, 500)
+    } catch (error) {
+      console.error('Failed to create ticket:', error)
+      notify('Failed to create ticket. Please try again.')
+      setSubmitting(false)
+    }
   }
 
-  const handleSendReply = (e) => {
+  const handleSendReply = async (e) => {
     e.preventDefault()
     if (!selectedTicket || !reply.trim()) return
     
     setSubmitting(true)
     const newMessage = { sender: 'me', message: reply, timestamp: new Date(), isAdmin: false }
     
-    setTimeout(() => {
+    try {
+      await api.post(`/support/${selectedTicket._id}/message`, { message: reply })
+      
       const updatedTickets = tickets.map(t => 
         t._id === selectedTicket._id 
           ? { ...t, messages: [...t.messages, newMessage] }
@@ -137,9 +150,13 @@ export default function Support() {
       setTickets(updatedTickets)
       setSelectedTicket({ ...selectedTicket, messages: [...selectedTicket.messages, newMessage] })
       setReply('')
-      setSubmitting(false)
       notify('Reply sent!')
-    }, 300)
+    } catch (error) {
+      console.error('Failed to send reply:', error)
+      notify('Failed to send message. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleDeleteTicket = (ticketId) => {

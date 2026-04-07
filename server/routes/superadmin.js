@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { superAdminAuth, superAdminLogin } = require('../middleware/superadmin');
+const { adminAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Trade = require('../models/Trade');
 const Transaction = require('../models/Transaction');
@@ -222,7 +223,7 @@ router.get('/users/:id', async (req, res) => {
   }
 });
 
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', superAdminAuth, async (req, res) => {
   try {
     const { name, email, role, kyc, isVerified, phone, avatar, password, balance, deposits, withdrawals, profit } = req.body;
     
@@ -233,7 +234,9 @@ router.put('/users/:id', async (req, res) => {
     
     if (name) user.name = name;
     if (email) user.email = email;
-    if (role) user.role = role;
+    if (role && req.superAdmin?.isSuperAdmin) {
+      user.role = role;
+    }
     if (kyc !== undefined) user.kyc = kyc;
     if (isVerified !== undefined) user.isVerified = isVerified;
     if (phone !== undefined) user.phone = phone;
@@ -256,6 +259,8 @@ router.put('/users/:id', async (req, res) => {
     if (withdrawals !== undefined && withdrawals !== '') user.walletStats.totalWithdraw = parseFloat(withdrawals);
     
     await user.save();
+    
+    console.log('[SuperAdmin] User saved. New role:', user.role);
     
     const userStatsKey = `user_${user._id.toString()}`;
     let userStats = await GlobalStats.findOne({ key: userStatsKey });
@@ -1061,9 +1066,13 @@ router.get('/tickets', async (req, res) => {
   }
 });
 
-router.post('/tickets/:id/respond', async (req, res) => {
+router.post('/tickets/:id/respond', adminAuth, async (req, res) => {
   try {
     const { message } = req.body;
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
     
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) {
@@ -1071,8 +1080,10 @@ router.post('/tickets/:id/respond', async (req, res) => {
     }
     
     ticket.messages.push({
-      sender: 'superadmin',
-      message,
+      sender: req.user.id,
+      senderName: req.user.name || 'Admin',
+      message: message.trim(),
+      isAdmin: true,
       timestamp: new Date()
     });
     
@@ -1084,6 +1095,7 @@ router.post('/tickets/:id/respond', async (req, res) => {
     
     res.json({ message: 'Response sent successfully', ticket });
   } catch (error) {
+    console.error('[Ticket Respond Error]', error);
     res.status(500).json({ message: error.message });
   }
 });

@@ -9,7 +9,7 @@ import {
   FiMail, FiPhone, FiGlobe, FiShield, FiHelpCircle,
   FiDollarSign, FiFileText, FiKey, FiActivity as FiAct
 } from 'react-icons/fi'
-import { FaChartBar, FaChartLine, FaUsers, FaExchangeAlt, FaBell } from 'react-icons/fa'
+import { FaChartBar, FaChartLine, FaUsers, FaExchangeAlt, FaBell, FaUserShield } from 'react-icons/fa'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import ThemeToggle from './ui/ThemeToggle'
@@ -53,7 +53,7 @@ export default function Layout() {
   const [marketStatus, setMarketStatus] = useState('open')
   const [marketOpen, setMarketOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { user, logout } = useAuthStore()
+  const { user, logout, fetchUser } = useAuthStore()
   const { initTheme, theme, setTheme } = useThemeStore()
   const navigate = useNavigate()
   const profileRef = useRef(null)
@@ -62,6 +62,10 @@ export default function Layout() {
   useEffect(() => {
     initTheme()
   }, [initTheme])
+
+  useEffect(() => {
+    fetchUser()
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -128,6 +132,21 @@ export default function Layout() {
                   <span className="font-medium">{item.label}</span>
                 </NavLink>
               ))}
+              {user?.role === 'admin' || user?.role === 'superadmin' ? (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 ${
+                      isActive
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/50'
+                    }`
+                  }
+                >
+                  <FaUserShield className="w-4 h-4" />
+                  <span className="font-medium">Admin</span>
+                </NavLink>
+              ) : null}
 
               <div className="relative">
                 <button
