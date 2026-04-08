@@ -1,29 +1,18 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://cryptofxtrading.up.railway.app/api/$1"
+      "src": "/api/(.*)",
+      "dest": "https://cryptofxtrading.up.railway.app/api/$1"
     },
     {
-      "source": "/socket.io/(.*)",
-      "destination": "https://cryptofxtrading.up.railway.app/socket.io/$1"
-    }
-  ],
-  "headers": [
+      "src": "/socket.io/(.*)",
+      "dest": "https://cryptofxtrading.up.railway.app/socket.io/$1"
+    },
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        }
-      ]
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
