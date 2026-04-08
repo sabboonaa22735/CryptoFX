@@ -16,10 +16,12 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const subscriptionsRef = useRef(new Set());
 
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '/';
+
   useEffect(() => {
     if (socketRef.current?.connected) return;
 
-    socketRef.current = io('/', {
+    socketRef.current = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
