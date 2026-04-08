@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FaSearch, FaChartLine, FaArrowUp, FaArrowDown, FaSync, FaInfoCircle, FaPercentage } from 'react-icons/fa'
 import { useSocket } from '../contexts/SocketContext'
+import { API_URL } from '../store/authStore'
 
 const Futures = () => {
   const [futures, setFutures] = useState([])
@@ -25,7 +26,7 @@ const Futures = () => {
   const { data: categoriesData } = useQuery({
     queryKey: ['futures-categories'],
     queryFn: async () => {
-      const res = await fetch('/api/futures/categories')
+      const res = await fetch(`${API_URL}/futures/categories`)
       return res.json()
     }
   })

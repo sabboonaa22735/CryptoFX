@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { FaSearch, FaChartLine, FaArrowUp, FaArrowDown, FaStar, FaFilter } from 'react-icons/fa'
 import { useSocket } from '../contexts/SocketContext'
+import { API_URL } from '../store/authStore'
 
 const Stocks = () => {
   const [stocks, setStocks] = useState([])
@@ -29,7 +30,7 @@ const Stocks = () => {
   const { data: sectorsData } = useQuery({
     queryKey: ['stock-sectors'],
     queryFn: async () => {
-      const res = await fetch('/api/stocks/sectors')
+      const res = await fetch(`${API_URL}/stocks/sectors`)
       return res.json()
     }
   })

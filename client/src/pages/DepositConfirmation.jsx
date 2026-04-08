@@ -13,6 +13,7 @@ import {
   FiUpload, FiDownload, FiRefreshCw, FiHelpCircle, FiCopy
 } from 'react-icons/fi'
 import { useThemeStore } from '../store/themeStore'
+import { API_URL } from '../store/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import { api } from '../store/authStore'
 
@@ -787,7 +788,7 @@ export default function DepositConfirmation({ coin = 'BTC' }) {
     let transactionId = null
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/wallet/deposit', {
+      const res = await fetch(`${API_URL}/wallet/deposit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

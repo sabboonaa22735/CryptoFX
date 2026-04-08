@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FaUsers, FaStar, FaTrophy, FaChartLine, FaArrowUp, FaArrowDown, FaCrown, FaSearch, FaCheck, FaUserPlus, FaUserMinus } from 'react-icons/fa'
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore, API_URL } from '../store/authStore'
 
 const CopyTrading = () => {
   const { user } = useAuthStore()
@@ -23,7 +23,7 @@ const CopyTrading = () => {
   const { data: featuredTraders } = useQuery({
     queryKey: ['featured-traders'],
     queryFn: async () => {
-      const res = await fetch('/api/copytrading/traders/featured')
+      const res = await fetch(`${API_URL}/copytrading/traders/featured`)
       return res.json()
     }
   })
@@ -31,7 +31,7 @@ const CopyTrading = () => {
   const { data: mySettings } = useQuery({
     queryKey: ['my-copy-settings'],
     queryFn: async () => {
-      const res = await fetch('/api/copytrading/my-settings')
+      const res = await fetch(`${API_URL}/copytrading/my-settings`)
       return res.json()
     }
   })
@@ -63,7 +63,7 @@ const CopyTrading = () => {
 
   const becomeTraderMutation = useMutation({
     mutationFn: async (data) => {
-      const res = await fetch('/api/copytrading/become-trader', {
+      const res = await fetch(`${API_URL}/copytrading/become-trader`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

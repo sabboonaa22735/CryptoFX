@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { FaChartLine, FaChartBar, FaCoins, FaArrowUp, FaArrowDown, FaSearch, FaFilter } from 'react-icons/fa'
 import { useSocket } from '../contexts/SocketContext'
 import { LoadingSkeleton, ErrorState, EmptyState } from '../components/ui/StatusComponents'
+import { API_URL } from '../store/authStore'
 
 const Indices = () => {
   const [indices, setIndices] = useState([])
@@ -16,7 +17,7 @@ const Indices = () => {
   const { data: indicesData, isLoading: loadingIndices, error: indicesError, refetch: refetchIndices } = useQuery({
     queryKey: ['indices'],
     queryFn: async () => {
-      const res = await fetch('/api/indices')
+      const res = await fetch(`${API_URL}/indices`)
       if (!res.ok) throw new Error('Failed to fetch indices')
       return res.json()
     },
@@ -26,7 +27,7 @@ const Indices = () => {
   const { data: commoditiesData, isLoading: loadingCommodities, error: commoditiesError, refetch: refetchCommodities } = useQuery({
     queryKey: ['commodities'],
     queryFn: async () => {
-      const res = await fetch('/api/indices/commodities')
+      const res = await fetch(`${API_URL}/indices/commodities`)
       if (!res.ok) throw new Error('Failed to fetch commodities')
       return res.json()
     },

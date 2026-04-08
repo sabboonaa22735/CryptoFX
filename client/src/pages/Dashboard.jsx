@@ -15,7 +15,7 @@ import { FaChartLine, FaCoins, FaWallet, FaExchangeAlt, FaRobot, FaShieldAlt, Fa
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { useTransactionStore } from '../store/transactionStore'
-import { api } from '../store/authStore'
+import { api, API_URL } from '../store/authStore'
 import { LoadingSkeleton, ErrorState, EmptyState } from '../components/ui/StatusComponents'
 import { useAdminUpdates } from '../hooks/useAdminUpdates'
 
@@ -913,7 +913,7 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
         formData.append('proofFilename', uploadedFile.name)
         formData.append('file', uploadedFile)
         
-        const uploadRes = await fetch('/api/wallet/upload-proof', {
+        const uploadRes = await fetch(`${API_URL}/wallet/upload-proof`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`

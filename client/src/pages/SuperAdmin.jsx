@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../store/authStore'
+import { api, API_URL } from '../store/authStore'
 
 const decodeToken = (token) => {
   try {
@@ -792,7 +792,7 @@ const DashboardPage = ({ onLogout }) => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['superadmin-stats'],
     queryFn: async () => {
-      const res = await fetch('/api/superadmin/dashboard', {
+      const res = await fetch(`${API_URL}/superadmin/dashboard`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       return res.json()
@@ -810,7 +810,7 @@ const DashboardPage = ({ onLogout }) => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/superadmin/users', {
+      const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       const data = await res.json()
@@ -832,7 +832,7 @@ const DashboardPage = ({ onLogout }) => {
   const { data: apiTransactionsData } = useQuery({
     queryKey: ['superadmin-transactions'],
     queryFn: async () => {
-      const res = await fetch('/api/superadmin/transactions', {
+      const res = await fetch(`${API_URL}/superadmin/transactions`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       const data = await res.json()
@@ -852,7 +852,7 @@ const DashboardPage = ({ onLogout }) => {
   const { data: tradesData } = useQuery({
     queryKey: ['superadmin-trades'],
     queryFn: async () => {
-      const res = await fetch('/api/superadmin/trades', {
+      const res = await fetch(`${API_URL}/superadmin/trades`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       const data = await res.json()
@@ -1296,7 +1296,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/users', {
+      const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1334,7 +1334,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
     }
     setSaving(true)
     try {
-      const res = await fetch('/api/superadmin/users', {
+      const res = await fetch(`${API_URL}/superadmin/users`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -1478,7 +1478,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
         <button onClick={async () => {
           if (confirm('Reset all user balances to $0? This cannot be undone.')) {
             try {
-              const res = await fetch('/api/superadmin/users/reset-balances', {
+              const res = await fetch(`${API_URL}/superadmin/users/reset-balances`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
               })
@@ -3032,7 +3032,7 @@ const PortfolioTab = ({ showNotification }) => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/users', {
+      const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
@@ -3145,7 +3145,7 @@ const PortfolioTab = ({ showNotification }) => {
     try {
       const token = localStorage.getItem('token')
       
-      const res = await fetch('/api/superadmin/portfolio-stats', {
+      const res = await fetch(`${API_URL}/superadmin/portfolio-stats`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -3415,7 +3415,7 @@ const WalletTab = ({ showNotification }) => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/users', {
+      const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
@@ -3499,7 +3499,7 @@ const WalletTab = ({ showNotification }) => {
       }
       console.log('Sending wallet stats update:', payload);
       
-      const res = await fetch('/api/superadmin/wallet-stats', {
+      const res = await fetch(`${API_URL}/superadmin/wallet-stats`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -3636,7 +3636,7 @@ const DepositTab = ({ showNotification }) => {
     queryFn: async () => {
       const token = localStorage.getItem('token')
       const superadminToken = localStorage.getItem('superadminToken') || token
-      const res = await fetch('/api/superadmin/deposits', {
+      const res = await fetch(`${API_URL}/superadmin/deposits`, {
         headers: { 'Authorization': `Bearer ${superadminToken}` }
       })
       console.log('Superadmin deposits response:', res.status, res.ok)
@@ -3682,7 +3682,7 @@ const DepositTab = ({ showNotification }) => {
     setLoadingAddresses(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/deposit-addresses', {
+      const res = await fetch(`${API_URL}/superadmin/deposit-addresses`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
@@ -3819,7 +3819,7 @@ const DepositTab = ({ showNotification }) => {
         memo: formData.name,
         isActive: true
       }
-      const res = await fetch('/api/superadmin/deposit-addresses', {
+      const res = await fetch(`${API_URL}/superadmin/deposit-addresses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4420,7 +4420,7 @@ const DepositSettingsTab = ({ showNotification }) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/deposit-settings', {
+      const res = await fetch(`${API_URL}/superadmin/deposit-settings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
@@ -4452,7 +4452,7 @@ const DepositSettingsTab = ({ showNotification }) => {
     setSaving(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/superadmin/deposit-settings', {
+      const res = await fetch(`${API_URL}/superadmin/deposit-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -5607,7 +5607,7 @@ const SuperAdmin = () => {
   const handleLogin = async (credentials) => {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/superadmin/login', {
+      const res = await fetch(`${API_URL}/superadmin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials)
@@ -5659,7 +5659,7 @@ const TradeSettingsTab = ({ showNotification }) => {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/superadmin/trade-settings', {
+      const res = await fetch(`${API_URL}/superadmin/trade-settings`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       if (res.ok) {
@@ -5680,7 +5680,7 @@ const TradeSettingsTab = ({ showNotification }) => {
   const handleSave = async (updatedSettings) => {
     setSaving(true)
     try {
-      const res = await fetch('/api/superadmin/trade-settings', {
+      const res = await fetch(`${API_URL}/superadmin/trade-settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -5705,7 +5705,7 @@ const TradeSettingsTab = ({ showNotification }) => {
   const handleDurationSave = async (durations) => {
     setSaving(true)
     try {
-      const res = await fetch('/api/superadmin/trade-settings/durations', {
+      const res = await fetch(`${API_URL}/superadmin/trade-settings/durations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
