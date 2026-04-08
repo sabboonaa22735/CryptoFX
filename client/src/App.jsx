@@ -112,8 +112,8 @@ function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-          <Route path="/superadmin" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
-          <Route path="/admin" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
+          <Route path="/superadmin" element={<SuperAdmin />} />
+          <Route path="/admin" element={<SuperAdmin />} />
           
           <Route path="/" element={<Layout />}>
             <Route path="dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
