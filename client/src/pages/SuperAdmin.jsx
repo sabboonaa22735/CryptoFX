@@ -41,7 +41,7 @@ import {
   FiMessageSquare, FiPhone, FiVideo, FiFileText,
   FiTrash2, FiEdit3, FiMoreVertical, FiChevronDown,
   FiSearch, FiFilter, FiDownload, FiUpload as FiUploadIcon,
-  FiLoader
+  FiLoader, FiBell
 } from 'react-icons/fi'
 import { QRCodeSVG } from 'qrcode.react'
 import { useThemeStore } from '../store/themeStore'
@@ -760,14 +760,50 @@ const DashboardPage = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New User Registration', message: 'John Doe just signed up', time: '2 min ago', type: 'user', read: false },
-    { id: 2, title: 'High Trading Volume', message: 'BTC volume spiked 50%', time: '15 min ago', type: 'alert', read: false },
-    { id: 3, title: 'Support Ticket', message: 'New ticket #1234 opened', time: '1 hour ago', type: 'support', read: true },
-  ])
+  const [notifications, setNotifications] = useState([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      setNotificationsLoading(true)
+      try {
+        const res = await fetch(`${API_URL}/superadmin/notifications?limit=20`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        })
+        const data = await res.json()
+        if (data.notifications) {
+          setNotifications(data.notifications.map(n => ({
+            id: n._id,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            read: n.read,
+            time: formatTimeAgo(n.createdAt)
+          })))
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+      } finally {
+        setNotificationsLoading(false)
+      }
+    }
+    if (showNotifications) {
+      fetchNotifications()
+    }
+  }, [showNotifications])
+
+  const formatTimeAgo = (date) => {
+    const now = new Date()
+    const past = new Date(date)
+    const diff = Math.floor((now - past) / 1000)
+    if (diff < 60) return 'Just now'
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`
+    return `${Math.floor(diff / 86400)} days ago`
+  }
   
   const showNotification = (message) => {
     setToastMessage(message)
@@ -775,16 +811,32 @@ const DashboardPage = ({ onLogout }) => {
     setTimeout(() => setShowToast(false), 3000)
   }
 
-  const markNotificationRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ))
-    showNotification('Notification marked as read')
+  const markNotificationRead = async (id) => {
+    try {
+      await fetch(`${API_URL}/superadmin/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, read: true } : n
+      ))
+      showNotification('Notification marked as read')
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
   }
 
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
-    showNotification('All notifications marked as read')
+  const markAllRead = async () => {
+    try {
+      await fetch(`${API_URL}/superadmin/notifications/read-all`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      })
+      setNotifications(notifications.map(n => ({ ...n, read: true })))
+      showNotification('All notifications marked as read')
+    } catch (error) {
+      console.error('Failed to mark all as read:', error)
+    }
   }
 
   const unreadCount = notifications.filter(n => !n.read).length
@@ -1040,37 +1092,55 @@ const DashboardPage = ({ onLogout }) => {
                         </button>
                       </div>
                       <div className="max-h-80 overflow-y-auto">
-                        {notifications.map((notif) => (
-                          <motion.div
-                            key={notif.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            onClick={() => markNotificationRead(notif.id)}
-                            className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${
-                              !notif.read ? 'bg-white/5' : ''
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                notif.type === 'user' ? 'bg-purple-500/20 text-purple-400' :
-                                notif.type === 'alert' ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-blue-500/20 text-blue-400'
-                              }`}>
-                                {notif.type === 'user' ? <FiUsers className="w-4 h-4" /> :
-                                 notif.type === 'alert' ? <FiAlertTriangle className="w-4 h-4" /> :
-                                 <FaHeadset className="w-4 h-4" />}
+                        {notificationsLoading ? (
+                          <div className="p-8 text-center">
+                            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="p-8 text-center text-white/50">
+                            No notifications yet
+                          </div>
+                        ) : (
+                          notifications.map((notif) => (
+                            <motion.div
+                              key={notif.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              onClick={() => markNotificationRead(notif.id)}
+                              className={`p-4 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${
+                                !notif.read ? 'bg-white/5' : ''
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  notif.type === 'deposit' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  notif.type === 'withdrawal' ? 'bg-amber-500/20 text-amber-400' :
+                                  notif.type === 'trade' ? 'bg-blue-500/20 text-blue-400' :
+                                  notif.type === 'support' ? 'bg-purple-500/20 text-purple-400' :
+                                  notif.type === 'user' ? 'bg-purple-500/20 text-purple-400' :
+                                  notif.type === 'alert' ? 'bg-amber-500/20 text-amber-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>
+                                  {notif.type === 'deposit' ? <FiDollarSign className="w-4 h-4" /> :
+                                   notif.type === 'withdrawal' ? <FiTrendingDown className="w-4 h-4" /> :
+                                   notif.type === 'trade' ? <FaExchangeAlt className="w-4 h-4" /> :
+                                   notif.type === 'support' ? <FaHeadset className="w-4 h-4" /> :
+                                   notif.type === 'user' ? <FiUsers className="w-4 h-4" /> :
+                                   notif.type === 'alert' ? <FiAlertTriangle className="w-4 h-4" /> :
+                                   <FiBell className="w-4 h-4" />}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-white">{notif.title}</p>
+                                  <p className="text-xs text-white/50 mt-0.5">{notif.message}</p>
+                                  <p className="text-xs text-white/30 mt-1">{notif.time}</p>
+                                </div>
+                                {!notif.read && (
+                                  <span className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
+                                )}
                               </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-white">{notif.title}</p>
-                                <p className="text-xs text-white/50 mt-0.5">{notif.message}</p>
-                                <p className="text-xs text-white/30 mt-1">{notif.time}</p>
-                              </div>
-                              {!notif.read && (
-                                <span className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
+                            </motion.div>
+                          ))
+                        )}
                       </div>
                     </motion.div>
                   )}

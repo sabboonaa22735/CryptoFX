@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { generateToken, generateRefreshToken, auth } = require('../middleware/auth');
+const { createAdminNotification, emitAdminNotification } = require('../utils/notifications');
 const nodemailer = require('nodemailer');
+const { getIO } = require('../sockets');
 
 const ADMIN_EMAIL = 'admin@platform.com';
 const ADMIN_PASSWORD = 'Admin@123';
@@ -38,6 +40,18 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+
+    const notification = await createAdminNotification(
+      'New User Registration',
+      `${user.name} (${user.email}) just signed up`,
+      'user',
+      { userId: user._id, email: user.email, name: user.name },
+      user._id
+    );
+    if (notification) {
+      const io = getIO();
+      emitAdminNotification(io, notification);
+    }
 
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);

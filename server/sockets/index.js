@@ -378,6 +378,8 @@ const stopPriceUpdates = () => {
   }
 };
 
+const getIO = () => io;
+
 module.exports = {
   initializeSocket,
   emitToRoom,
@@ -386,5 +388,6 @@ module.exports = {
   stopPriceUpdates,
   emitAdminUpdate,
   invalidateCache,
-  cacheInvalidation
+  cacheInvalidation,
+  getIO
 };

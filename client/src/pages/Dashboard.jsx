@@ -12,7 +12,7 @@ import {
   FiCreditCard, FiUser, FiLock, FiKey, FiMail, FiArrowUp, FiArrowDown
 } from 'react-icons/fi'
 import { FaChartLine, FaCoins, FaWallet, FaExchangeAlt, FaRobot, FaShieldAlt, FaBitcoin, FaEthereum, FaLock, FaCcVisa, FaCcMastercard, FaUniversity, FaCog, FaQrcode, FaCopy, FaRedo, FaHeadset, FaCheck, FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaCloudUploadAlt, FaImage, FaClock } from 'react-icons/fa'
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore, API_URL } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { useTransactionStore } from '../store/transactionStore'
 import { api, API_URL } from '../store/authStore'
@@ -792,15 +792,17 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
 
   useEffect(() => {
     const fetchDepositData = async () => {
+      setLoadingAddress(true)
       try {
         const [addressesRes, settingsRes] = await Promise.all([
           api.get('/deposits/deposit-addresses'),
           api.get('/deposits/settings')
         ])
         
-        if (addressesRes.data && Array.isArray(addressesRes.data)) {
+        const addresses = addressesRes.data
+        if (addresses && Array.isArray(addresses)) {
           const addrMap = {}
-          addressesRes.data.forEach(addr => {
+          addresses.forEach(addr => {
             addrMap[addr.symbol] = addr
           })
           setDepositAddresses(addrMap)
@@ -816,6 +818,8 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
         }
       } catch (error) {
         console.error('Failed to fetch deposit data:', error)
+      } finally {
+        setLoadingAddress(false)
       }
     }
     
@@ -1110,7 +1114,7 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
                   </div>
                   <div className={`p-3 rounded-xl ${theme === 'dark' ? 'bg-black/20' : 'bg-white border border-gray-200'}`}>
                     <p className={`text-xs font-mono break-all ${theme === 'dark' ? 'text-white/80' : 'text-gray-700'}`}>
-                      {currentAddress || 'Loading...'}
+                      {loadingAddress ? 'Loading...' : currentAddress || 'No address available'}
                     </p>
                     {currentMemo && (
                       <p className={`text-xs font-mono break-all mt-1 ${theme === 'dark' ? 'text-white/60' : 'text-gray-500'}`}>
@@ -1128,7 +1132,7 @@ const DepositTab = ({ theme, onComplete, depositCoins }) => {
               ) : (
                 <div className={`flex items-center gap-2 p-3 rounded-xl ${theme === 'dark' ? 'bg-black/20' : 'bg-white border border-gray-200'}`}>
                   <code className={`flex-1 font-mono text-sm break-all ${theme === 'dark' ? 'text-white/80' : 'text-gray-700'}`}>
-                    {currentAddress || 'Loading...'}
+                    {loadingAddress ? 'Loading...' : currentAddress || 'No address available'}
                   </code>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
@@ -2867,21 +2871,67 @@ const SentimentIndicator = ({ theme }) => {
 }
 
 const NotificationPanel = ({ isOpen, onClose, theme }) => {
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'BTC Price Alert', message: 'Bitcoin reached $75,000', time: '2 min ago', type: 'price', unread: true },
-    { id: 2, title: 'Trade Executed', message: 'Your BUY order for ETH was successful', time: '15 min ago', type: 'trade', unread: true },
-    { id: 3, title: 'AI Signal', message: 'New bullish signal detected for SOL', time: '1 hour ago', type: 'ai', unread: false },
-    { id: 4, title: 'Portfolio Update', message: 'Your portfolio is up 12.5% this week', time: '2 hours ago', type: 'portfolio', unread: false },
-  ])
+  const { token } = useAuthStore()
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, unread: false } : n
-    ))
+  useEffect(() => {
+    if (isOpen && token) {
+      setLoading(true)
+      fetch(`${API_URL}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          const formatted = (data.notifications || []).map(n => ({
+            id: n._id,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            unread: !n.read,
+            time: formatTimeAgo(n.createdAt)
+          }))
+          setNotifications(formatted)
+        })
+        .catch(err => console.error('Failed to fetch notifications:', err))
+        .finally(() => setLoading(false))
+    }
+  }, [isOpen, token])
+
+  const formatTimeAgo = (date) => {
+    const now = new Date()
+    const past = new Date(date)
+    const diff = Math.floor((now - past) / 1000)
+    if (diff < 60) return 'Just now'
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hour ago`
+    return `${Math.floor(diff / 86400)} day ago`
   }
 
-  const clearAll = () => {
-    setNotifications([])
+  const markAsRead = async (id) => {
+    try {
+      await fetch(`${API_URL}/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, unread: false } : n
+      ))
+    } catch (err) {
+      console.error('Failed to mark as read:', err)
+    }
+  }
+
+  const clearAll = async () => {
+    try {
+      await fetch(`${API_URL}/notifications/clear-all`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifications([])
+    } catch (err) {
+      console.error('Failed to clear notifications:', err)
+    }
   }
 
   const unreadCount = notifications.filter(n => n.unread).length
@@ -2933,7 +2983,11 @@ const NotificationPanel = ({ isOpen, onClose, theme }) => {
               </div>
             </div>
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <motion.div
                     animate={{ scale: [1, 1.1, 1] }}

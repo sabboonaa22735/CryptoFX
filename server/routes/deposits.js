@@ -5,11 +5,13 @@ const DepositSettings = require('../models/DepositSettings');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { createAdminNotification, emitAdminNotification } = require('../utils/notifications');
+const { getIO } = require('../sockets');
 
 router.get('/deposit-addresses', async (req, res) => {
   try {
     const { symbol } = req.query;
-    let query = { isActive: true };
+    let query = {};
     
     if (symbol) {
       query.symbol = symbol.toUpperCase();
@@ -95,6 +97,18 @@ router.post('/', auth, async (req, res) => {
 
     await transaction.save();
     console.log('Deposit created:', transaction._id, 'status:', transaction.status);
+
+    const notification = await createAdminNotification(
+      'New Deposit Request',
+      `$${amount} ${coin} deposit from ${req.user.email}`,
+      'deposit',
+      { transactionId: transaction._id, amount, coin, userId: req.user.id },
+      transaction._id
+    );
+    if (notification) {
+      const io = getIO();
+      emitAdminNotification(io, notification);
+    }
 
     res.status(201).json({ 
       message: 'Deposit submitted successfully',

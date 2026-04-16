@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const { auth, adminAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const { createNotification, createAdminNotification } = require('../utils/notifications');
+const { getIO, emitAdminNotification } = require('../sockets');
 const path = require('path');
 
 const GlobalStatsSchema = new mongoose.Schema({
@@ -97,6 +99,15 @@ router.post('/deposit', auth, async (req, res) => {
     }
 
     await transaction.save();
+
+    await createNotification({
+      user: req.user.id,
+      title: 'Deposit Pending',
+      message: `Your deposit of $${amount} ${currency} is ${method === 'crypto' ? 'pending confirmation' : 'being processed'}`,
+      type: 'deposit',
+      read: false
+    });
+
     res.status(201).json({ transaction });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -159,6 +170,27 @@ router.post('/withdraw', auth, async (req, res) => {
     });
 
     await transaction.save();
+
+    await createNotification({
+      user: req.user.id,
+      title: 'Withdrawal Requested',
+      message: `Your withdrawal request of $${amount} is pending approval`,
+      type: 'withdrawal',
+      read: false
+    });
+
+    const notification = await createAdminNotification(
+      'New Withdrawal Request',
+      `$${amount} withdrawal request from ${req.user.email}`,
+      'withdrawal',
+      { transactionId: transaction._id, amount, userId: req.user.id },
+      transaction._id
+    );
+    if (notification) {
+      const io = getIO();
+      emitAdminNotification(io, notification);
+    }
+
     res.status(201).json({ transaction, balance: user.wallet.balance });
   } catch (error) {
     res.status(500).json({ message: error.message });

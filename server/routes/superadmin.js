@@ -10,8 +10,10 @@ const Ticket = require('../models/Ticket');
 const DepositAddress = require('../models/DepositAddress');
 const TradeSettings = require('../models/TradeSettings');
 const DepositSettings = require('../models/DepositSettings');
+const AdminNotification = require('../models/AdminNotification');
 const axios = require('axios');
-const { emitAdminUpdate, invalidateCache } = require('../sockets');
+const { emitAdminUpdate, invalidateCache, getIO } = require('../sockets');
+const { createNotification, createAdminNotification } = require('../utils/notifications');
 
 router.post('/login', superAdminLogin);
 
@@ -808,6 +810,14 @@ router.put('/deposits/:id/approve', async (req, res) => {
     invalidateCache('dashboardStats');
     emitAdminUpdate('deposit_approved', { transactionId: req.params.id, userId: transaction.user, amount: transaction.amount });
     
+    await createNotification({
+      user: transaction.user,
+      title: 'Deposit Approved',
+      message: `Your deposit of $${transaction.amount} has been approved`,
+      type: 'deposit',
+      read: false
+    });
+    
     res.json({ message: 'Deposit approved successfully', transaction });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -831,6 +841,14 @@ router.put('/deposits/:id/reject', async (req, res) => {
     invalidateCache('transactions');
     invalidateCache('dashboardStats');
     emitAdminUpdate('deposit_rejected', { transactionId: req.params.id });
+    
+    await createNotification({
+      user: transaction.user,
+      title: 'Deposit Rejected',
+      message: `Your deposit of $${transaction.amount} has been rejected`,
+      type: 'deposit',
+      read: false
+    });
     
     res.json({ message: 'Deposit rejected', transaction });
   } catch (error) {
@@ -900,6 +918,17 @@ router.put('/transactions/:id/approve', async (req, res) => {
     invalidateCache('walletData');
     invalidateCache('dashboardStats');
     emitAdminUpdate('transaction_approved', { transactionId: req.params.id, userId: transaction.user?._id, amount: transaction.amount });
+    
+    const notificationType = transaction.type === 'deposit' ? 'deposit' : 'withdrawal';
+    await createNotification({
+      user: transaction.user._id,
+      title: transaction.type === 'deposit' ? 'Deposit Approved' : 'Withdrawal Approved',
+      message: transaction.type === 'deposit' 
+        ? `Your deposit of $${transaction.amount} has been approved`
+        : `Your withdrawal of $${transaction.amount} has been approved`,
+      type: notificationType,
+      read: false
+    });
     
     res.json({ 
       message: 'Transaction approved successfully', 
@@ -1360,6 +1389,86 @@ router.post('/deposit-settings/reset', async (req, res) => {
     emitAdminUpdate('deposit_settings_reset', {});
     
     res.json({ message: 'Deposit settings reset to defaults', settings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/notifications', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const notifications = await AdminNotification.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await AdminNotification.countDocuments();
+    const unreadCount = await AdminNotification.countDocuments({ read: false });
+
+    res.json({
+      notifications,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+      unreadCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/notifications/:id/read', async (req, res) => {
+  try {
+    const notification = await AdminNotification.findByIdAndUpdate(
+      req.params.id,
+      { read: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json(notification);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/notifications/read-all', async (req, res) => {
+  try {
+    await AdminNotification.updateMany(
+      { read: false },
+      { read: true }
+    );
+
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/notifications/:id', async (req, res) => {
+  try {
+    const notification = await AdminNotification.findByIdAndDelete(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json({ message: 'Notification deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/notifications/clear-all', async (req, res) => {
+  try {
+    await AdminNotification.deleteMany({});
+    res.json({ message: 'All notifications cleared' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

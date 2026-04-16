@@ -54,6 +54,7 @@ const superadminRoutes = require('./routes/superadmin');
 const depositsRoutes = require('./routes/deposits');
 const cryptoRoutes = require('./routes/crypto');
 const portfolioRoutes = require('./routes/portfolio');
+const notificationRoutes = require('./routes/notifications');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -109,10 +110,10 @@ app.use('/api/indices', indicesRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/futures', futuresRoutes);
 app.use('/api/copytrading', copytradingRoutes);
-app.use('/api/superadmin', superadminRoutes);
 app.use('/api/deposits', depositsRoutes);
 app.use('/api/crypto', cryptoRoutes);
 app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

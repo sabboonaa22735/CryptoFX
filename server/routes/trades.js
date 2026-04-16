@@ -3,7 +3,8 @@ const router = express.Router();
 const { auth, adminAuth } = require('../middleware/auth');
 const Trade = require('../models/Trade');
 const User = require('../models/User');
-const { emitAdminUpdate } = require('../sockets');
+const { emitAdminUpdate, getIO } = require('../sockets');
+const { createNotification, createAdminNotification, emitAdminNotification } = require('../utils/notifications');
 
 router.post('/buy', auth, async (req, res) => {
   try {
@@ -91,6 +92,28 @@ router.post('/buy', auth, async (req, res) => {
       totalProfit: user.walletStats?.totalProfit || 0
     });
 
+    await createNotification({
+      user: user._id,
+      title: 'Trade Executed',
+      message: `Your BUY order for ${symbol} was successful`,
+      type: 'trade',
+      read: false
+    });
+
+    if (totalReturn >= 1000) {
+      const notification = await createAdminNotification(
+        'High Value Trade',
+        `${user.email} executed a $${totalReturn.toFixed(2)} ${symbol} trade`,
+        'trade',
+        { tradeId: trade._id, amount: totalReturn, symbol, userId: user._id },
+        trade._id
+      );
+      if (notification) {
+        const io = getIO();
+        emitAdminNotification(io, notification);
+      }
+    }
+
     res.status(201).json({ trade, balance: user.wallet.balance, profit: profit, totalReturn: totalReturn });
   } catch (error) {
     console.error('Buy trade error:', error);
@@ -177,6 +200,14 @@ router.post('/sell', auth, async (req, res) => {
     });
 
     res.status(201).json({ trade, balance: user.wallet.balance, profit: profitLoss });
+
+    await createNotification({
+      user: user._id,
+      title: 'Trade Executed',
+      message: `Your SELL order for ${symbol} was successful. P/L: $${profitLoss.toFixed(2)}`,
+      type: 'trade',
+      read: false
+    });
   } catch (error) {
     console.error('Sell trade error:', error);
     res.status(500).json({ message: error.message });

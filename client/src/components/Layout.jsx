@@ -10,7 +10,7 @@ import {
   FiDollarSign, FiFileText, FiKey, FiActivity as FiAct
 } from 'react-icons/fi'
 import { FaChartBar, FaChartLine, FaUsers, FaExchangeAlt, FaBell, FaUserShield } from 'react-icons/fa'
-import { useAuthStore } from '../store/authStore'
+import { useAuthStore, API_URL } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import ThemeToggle from './ui/ThemeToggle'
 
@@ -30,12 +30,6 @@ const marketItems = [
   { path: '/copytrading', icon: FaUsers, label: 'Copy Trading' },
 ]
 
-const mockNotifications = [
-  { id: 1, type: 'success', title: 'Deposit Confirmed', message: 'Your deposit of 0.5 BTC has been confirmed', time: '2 min ago', read: false },
-  { id: 2, type: 'price', title: 'BTC Price Alert', message: 'Bitcoin is up 5.2% in the last hour', time: '15 min ago', read: false },
-  { id: 3, type: 'info', title: 'Copy Trading', message: 'TopTrader just opened a new position', time: '1 hour ago', read: true },
-]
-
 const profileMenuItems = [
   { icon: FiUser, label: 'Profile Settings', path: '/profile', color: 'blue' },
   { icon: FiSettings, label: 'Account Settings', path: '/settings', color: 'purple' },
@@ -47,17 +41,30 @@ const profileMenuItems = [
 ]
 
 export default function Layout() {
-  const [notifications, setNotifications] = useState(mockNotifications.filter(n => !n.read).length)
+  const { user, logout, fetchUser, token } = useAuthStore()
+  const [notifications, setNotifications] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [marketStatus, setMarketStatus] = useState('open')
   const [marketOpen, setMarketOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { user, logout, fetchUser } = useAuthStore()
   const { initTheme, theme, setTheme } = useThemeStore()
   const navigate = useNavigate()
   const profileRef = useRef(null)
   const notificationsRef = useRef(null)
+
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_URL}/notifications?limit=5`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          setNotifications(data.unreadCount || 0)
+        })
+        .catch(() => {})
+    }
+  }, [token])
 
   useEffect(() => {
     initTheme()
@@ -89,12 +96,58 @@ export default function Layout() {
     setMarketStatus(prev => prev === 'open' ? 'closed' : 'open')
   }
 
-  const markAsRead = (id) => {
-    setNotifications(prev => Math.max(0, prev - 1))
+  const [notifList, setNotifList] = useState([])
+
+  useEffect(() => {
+    if (token && showNotifications) {
+      fetch(`${API_URL}/notifications?limit=10`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          setNotifList((data.notifications || []).map(n => ({
+            id: n._id,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            read: n.read,
+            time: formatTimeAgo(n.createdAt)
+          })))
+        })
+        .catch(() => {})
+    }
+  }, [token, showNotifications])
+
+  const formatTimeAgo = (date) => {
+    const now = new Date()
+    const past = new Date(date)
+    const diff = Math.floor((now - past) / 1000)
+    if (diff < 60) return 'Just now'
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`
+    return `${Math.floor(diff / 86400)} days ago`
   }
 
-  const markAllAsRead = () => {
-    setNotifications(0)
+  const markAsRead = async (id) => {
+    try {
+      await fetch(`${API_URL}/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifList(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+      setNotifications(prev => Math.max(0, prev - 1))
+    } catch (err) {}
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch(`${API_URL}/notifications/read-all`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifList(prev => prev.map(n => ({ ...n, read: true })))
+      setNotifications(0)
+    } catch (err) {}
     setShowNotifications(false)
   }
 
@@ -242,7 +295,12 @@ export default function Layout() {
                       </button>
                     </div>
                     <div className="max-h-80 overflow-y-auto">
-                      {mockNotifications.map((notif) => (
+                      {notifList.length === 0 ? (
+                        <div className="p-8 text-center text-[var(--text-secondary)] text-sm">
+                          No notifications yet
+                        </div>
+                      ) : (
+                        notifList.map((notif) => (
                         <motion.div
                           key={notif.id}
                           initial={{ opacity: 0 }}
@@ -254,11 +312,15 @@ export default function Layout() {
                         >
                           <div className="flex items-start gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              notif.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
-                              notif.type === 'price' ? 'bg-amber-500/20 text-amber-400' :
-                              'bg-blue-500/20 text-blue-400'
+                              notif.type === 'deposit' ? 'bg-emerald-500/20 text-emerald-400' :
+                              notif.type === 'withdrawal' ? 'bg-amber-500/20 text-amber-400' :
+                              notif.type === 'trade' ? 'bg-blue-500/20 text-blue-400' :
+                              notif.type === 'price' ? 'bg-purple-500/20 text-purple-400' :
+                              'bg-gray-500/20 text-gray-400'
                             }`}>
-                              {notif.type === 'success' ? <FiCheck className="w-5 h-5" /> :
+                              {notif.type === 'deposit' ? <FiCheck className="w-5 h-5" /> :
+                               notif.type === 'withdrawal' ? <FiTrendingDown className="w-5 h-5" /> :
+                               notif.type === 'trade' ? <FaExchangeAlt className="w-5 h-5" /> :
                                notif.type === 'price' ? <FiTrendingUp className="w-5 h-5" /> :
                                <FiAlertCircle className="w-5 h-5" />}
                             </div>
@@ -272,7 +334,8 @@ export default function Layout() {
                             )}
                           </div>
                         </motion.div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </motion.div>
                 )}

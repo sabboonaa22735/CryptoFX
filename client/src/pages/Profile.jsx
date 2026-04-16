@@ -5,7 +5,7 @@ import {
   FiUser, FiMail, FiPhone, FiLock, FiCamera, FiShield, FiCheck, 
   FiEdit2, FiSave, FiX, FiAlertCircle, FiCheckCircle, FiStar,
   FiTrendingUp, FiDollarSign, FiActivity, FiAward, FiSend,
-  FiKey, FiSmartphone, FiFileText, FiCamera as FiIdCard, FiGlobe
+  FiKey, FiSmartphone, FiFileText, FiCamera as FiIdCard, FiGlobe, FiBell
 } from 'react-icons/fi'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'

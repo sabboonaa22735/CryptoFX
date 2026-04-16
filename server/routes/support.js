@@ -3,6 +3,8 @@ const router = express.Router();
 const { auth, adminAuth } = require('../middleware/auth');
 const { superAdminAuth } = require('../middleware/superadmin');
 const Ticket = require('../models/Ticket');
+const { createAdminNotification, emitAdminNotification } = require('../utils/notifications');
+const { getIO } = require('../sockets');
 
 router.post('/messages', auth, async (req, res) => {
   try {
@@ -28,6 +30,18 @@ router.post('/messages', auth, async (req, res) => {
         status: 'open'
       });
       await ticket.save();
+
+      const notification = await createAdminNotification(
+        'New Support Ticket',
+        `Ticket #${ticket._id.toString().slice(-6)} - ${subject || 'Chat Support'}`,
+        'support',
+        { ticketId: ticket._id, category, priority },
+        ticket._id
+      );
+      if (notification) {
+        const io = getIO();
+        emitAdminNotification(io, notification);
+      }
     } else {
       ticket.messages.push({
         sender: req.user.id,
