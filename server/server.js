@@ -59,8 +59,14 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST']
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+      'https://cryptofxtrading.vercel.app'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
@@ -69,10 +75,24 @@ initializeSocket(io);
 
 app.use(helmet());
 app.set('trust proxy', 1);
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+      'https://cryptofxtrading.vercel.app'
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
-}));
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
