@@ -1448,11 +1448,11 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
     }
     setSaving(true)
     try {
-      const res = await fetch(`/api/superadmin/users/${editingUser._id}`, {
+      const res = await fetch(`${API_URL}/superadmin/users/${editingUser._id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${localStorage.getItem('superadminToken')}` 
         },
         body: JSON.stringify(formData)
       })
@@ -5684,7 +5684,7 @@ const SuperAdmin = () => {
       })
       if (res.ok) {
         const data = await res.json()
-        localStorage.setItem('token', data.token)
+        localStorage.setItem('superadminToken', data.token)
         setIsLoggedIn(true)
         navigate('/superadmin', { replace: true })
       }
@@ -5695,6 +5695,7 @@ const SuperAdmin = () => {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('superadminToken')
     localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
     setIsLoggedIn(false)
