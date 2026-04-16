@@ -74,6 +74,7 @@ export default function Wallet() {
     totalProfit: 0
   })
   const [transactions, setTransactions] = useState([])
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
@@ -99,24 +100,30 @@ export default function Wallet() {
   const [currentStep, setCurrentStep] = useState(1)
 
   const fetchWalletData = useCallback(async () => {
-    if (!user) return
+    console.log('Fetching wallet data...')
     
     try {
-      const [balanceRes, statsRes, transactionsRes] = await Promise.all([
-        api.get('/wallet/balance'),
-        api.get('/wallet/global-stats'),
-        api.get('/wallet/transactions')
-      ])
-
-      const stats = statsRes.data || {}
-      const balance = balanceRes.data || {}
-
-      setWalletData({
-        balance: stats.availableBalance || stats.balance || balance.balance || 0,
-        totalDeposit: stats.totalDeposit || balance.deposits || 0,
-        totalWithdraw: stats.totalWithdraw || balance.withdrawals || 0,
-        totalProfit: stats.totalProfit || 0
-      })
+      console.log('Fetching user data...')
+      const userRes = await api.get('/users/me')
+      const userData = userRes.data
+      console.log('User response:', userData)
+      console.log('User wallet from API:', userData.wallet)
+      console.log('User walletStats from API:', userData.walletStats)
+      
+      const userBalance = userData.wallet?.balance ?? 0
+      const userDeposits = userData.walletStats?.totalDeposit ?? userData.wallet?.deposits ?? 0
+      const userWithdrawals = userData.walletStats?.totalWithdraw ?? userData.wallet?.withdrawals ?? 0
+      const userProfit = userData.walletStats?.totalProfit ?? 0
+      
+      console.log('Computed from user data:', { balance: userBalance, deposits: userDeposits, withdrawals: userWithdrawals, profit: userProfit })
+      
+      console.log('Fetching transactions...')
+      const transactionsRes = await api.get('/wallet/transactions')
+      console.log('Transactions response:', transactionsRes.data)
+      
+      console.log('Fetching history...')
+      const historyRes = await api.get('/wallet/history')
+      console.log('History response:', historyRes.data)
 
       const newTransactions = transactionsRes.data?.transactions || []
       setTransactions(prev => {
@@ -124,6 +131,16 @@ export default function Wallet() {
           return newTransactions
         }
         return prev
+      })
+
+      const newHistory = historyRes.data?.history || []
+      setHistory(newHistory)
+
+      setWalletData({
+        balance: userBalance,
+        totalDeposit: userDeposits,
+        totalWithdraw: userWithdrawals,
+        totalProfit: userProfit
       })
 
       refreshWallet()
@@ -135,23 +152,19 @@ export default function Wallet() {
         setError('Session expired. Please login again.')
       }
     }
-  }, [user, refreshWallet])
+}, [refreshWallet])
 
   useEffect(() => {
-    if (user) {
-      fetchWalletData()
-    }
-  }, [user, fetchWalletData])
+    fetchWalletData()
+  }, [fetchWalletData])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (user) {
-        fetchWalletData()
-      }
+      fetchWalletData()
     }, 60000)
     
     return () => clearInterval(interval)
-  }, [user, fetchWalletData])
+  }, [fetchWalletData])
 
   useAdminUpdates({
     enabled: true,
@@ -181,6 +194,14 @@ export default function Wallet() {
       return dateB - dateA
     })
   }, [transactions])
+
+  const displayHistory = useMemo(() => {
+    return [...history].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0)
+      const dateB = new Date(b.createdAt || 0)
+      return dateB - dateA
+    })
+  }, [history])
 
   const fetchDepositData = useCallback(async () => {
     setDepositModalLoading(true)
@@ -384,7 +405,7 @@ export default function Wallet() {
             <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between">
                 <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  Recent Transactions
+                  Recent Transactions & Trades
                 </h2>
               </div>
             </div>
@@ -393,68 +414,105 @@ export default function Wallet() {
                 <LoadingSkeleton count={3} />
               ) : error ? (
                 <ErrorState message={error} onRetry={fetchWalletData} />
-              ) : displayTransactions.length === 0 ? (
+              ) : displayHistory.length === 0 ? (
                 <div className={`text-center py-12 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                   <FiDollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p className="font-medium">No transactions yet</p>
-                  <p className="text-sm mt-1">Make a deposit to get started</p>
+                  <p className="text-sm mt-1">Make a deposit or trade to get started</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {displayTransactions.slice(0, 10).map((tx) => {
-                    const isDeposit = tx.type === 'deposit'
-                    const isPending = tx.status === 'pending'
-                    const isRejected = tx.status === 'rejected'
+                  {displayHistory.slice(0, 15).map((item) => {
+                    const isTransaction = item.source === 'transaction'
+                    const isDeposit = isTransaction && item.type === 'deposit'
+                    const isWithdrawal = isTransaction && item.type === 'withdrawal'
+                    const isTrade = item.source === 'trade'
+                    const isProfit = isTrade && item.profit > 0
+                    const isLoss = isTrade && item.profit < 0
+                    const isPending = item.status === 'pending'
                     
                     return (
                       <div
-                        key={tx._id}
+                        key={item._id}
                         className={`flex items-center justify-between p-4 rounded-xl ${
                           isPending 
                             ? theme === 'dark' ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'
-                            : isRejected
-                              ? theme === 'dark' ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
-                              : theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
+                            : isProfit
+                              ? theme === 'dark' ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
+                              : isLoss
+                                ? theme === 'dark' ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
+                                : isDeposit
+                                  ? theme === 'dark' ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
+                                  : theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            isDeposit 
-                              ? isPending ? 'bg-yellow-500/20' : isRejected ? 'bg-red-500/20' : 'bg-green-500/20'
-                              : 'bg-red-500/20'
+                            isTrade 
+                              ? isProfit ? 'bg-green-500/20' : isLoss ? 'bg-red-500/20' : 'bg-blue-500/20'
+                              : isDeposit 
+                                ? isPending ? 'bg-yellow-500/20' : 'bg-green-500/20'
+                                : 'bg-red-500/20'
                           }`}>
-                            {isDeposit ? (
-                              <FiArrowDown className={`w-5 h-5 ${isPending ? 'text-yellow-500' : isRejected ? 'text-red-500' : 'text-green-500'}`} />
+                            {isTrade ? (
+                              isProfit 
+                                ? <FiTrendingUp className="w-5 h-5 text-green-500" />
+                                : isLoss 
+                                  ? <FiTrendingDown className="w-5 h-5 text-red-500" />
+                                  : <FaExchangeAlt className="w-5 h-5 text-blue-500" />
+                            ) : isDeposit ? (
+                              <FiArrowDown className={`w-5 h-5 ${isPending ? 'text-yellow-500' : 'text-green-500'}`} />
                             ) : (
                               <FiArrowUp className="w-5 h-5 text-red-500" />
                             )}
                           </div>
                           <div>
                             <p className={`font-medium capitalize ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                              {tx.type}
+                              {isTransaction ? item.type : `Trade ${item.symbol} (${item.tradeType})`}
                             </p>
                             <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {new Date(tx.createdAt).toLocaleDateString()}
+                              {new Date(item.createdAt).toLocaleDateString()}
+                              {isTrade && ` • ${item.returnPercent?.toFixed(2)}%`}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className={`font-semibold ${
-                            isDeposit 
-                              ? isPending ? 'text-yellow-500' : isRejected ? 'text-red-500' : 'text-green-500'
-                              : theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            isProfit 
+                              ? 'text-green-500'
+                              : isLoss
+                                ? 'text-red-500'
+                                : isDeposit
+                                  ? isPending ? 'text-yellow-500' : 'text-green-500'
+                                  : theme === 'dark' ? 'text-white' : 'text-gray-900'
                           }`}>
-                            {isDeposit ? '+' : '-'}{formatCurrency(tx.amount)}
+                            {isTrade 
+                              ? (isProfit ? '+' : '') + formatCurrency(item.profit || 0)
+                              : (isDeposit ? '+' : '-') + formatCurrency(item.amount)
+                            }
                           </p>
-                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                            tx.status === 'completed'
-                              ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
-                              : tx.status === 'pending'
-                                ? theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
-                                : theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'
-                          }`}>
-                            {tx.status}
-                          </span>
+                          {isTrade && (
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                              isProfit
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
+                                : isLoss
+                                  ? theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'
+                                  : theme === 'dark' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'
+                            }`}>
+                              {isProfit ? 'Profit' : isLoss ? 'Loss' : 'Trade'}
+                            </span>
+                          )}
+                          {isTransaction && (
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                              item.status === 'completed'
+                                ? theme === 'dark' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
+                                : item.status === 'pending'
+                                  ? theme === 'dark' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-600'
+                                  : theme === 'dark' ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600'
+                            }`}>
+                              {item.status}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )

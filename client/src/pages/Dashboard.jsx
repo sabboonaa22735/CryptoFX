@@ -301,7 +301,7 @@ const StatCard = ({ stat, index }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 + 0.1 }}
-            className={`text-4xl font-black mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+            className={`text-3xl sm:text-4xl font-black mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
           >
             {stat.value}
           </motion.p>
@@ -2951,7 +2951,7 @@ const NotificationPanel = ({ isOpen, onClose, theme }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className={`fixed top-20 right-6 w-96 rounded-2xl overflow-hidden z-50 shadow-2xl ${
+            className={`fixed top-20 right-6 w-full sm:w-80 md:w-96 rounded-2xl overflow-hidden z-50 shadow-2xl ${
               theme === 'dark'
                 ? 'bg-gray-900/95 backdrop-blur-xl border border-white/10'
                 : 'bg-white/95 backdrop-blur-xl border border-gray-200'
@@ -3161,7 +3161,7 @@ const SettingsPanel = ({ isOpen, onClose, theme }) => {
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.95, x: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className={`fixed top-20 right-6 w-[500px] rounded-2xl overflow-hidden z-50 shadow-2xl ${
+            className={`fixed top-20 right-6 w-full sm:w-[400px] md:w-[500px] rounded-2xl overflow-hidden z-50 shadow-2xl ${
               theme === 'dark'
                 ? 'bg-gray-900/95 backdrop-blur-xl border border-white/10'
                 : 'bg-white/95 backdrop-blur-xl border border-gray-200'
@@ -3916,7 +3916,7 @@ export default function Dashboard() {
                       </h2>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                       {quickActions.map((action, i) => (
                         <QuickAction key={action.label} action={action} index={i} />
                       ))}
@@ -3936,7 +3936,7 @@ export default function Dashboard() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.9 }}
-                className={`rounded-3xl p-8 ${
+                className={`rounded-3xl p-6 sm:p-8 ${
                   theme === 'dark' 
                     ? 'bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 backdrop-blur-xl border border-emerald-500/20' 
                     : 'bg-gradient-to-br from-emerald-50 to-cyan-50 border border-emerald-200 shadow-xl'

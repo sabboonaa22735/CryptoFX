@@ -152,9 +152,9 @@ export default function ForgotPassword() {
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full max-w-md sm:max-w-lg"
       >
-        <div className={`relative rounded-[2rem] overflow-hidden p-8 ${
+        <div className={`relative rounded-[2rem] overflow-hidden p-6 sm:p-8 ${
           theme === 'dark'
             ? 'bg-gray-900/80 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/50'
             : 'bg-white/90 backdrop-blur-2xl border border-black/5 shadow-2xl shadow-blue-500/10'

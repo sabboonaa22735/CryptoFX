@@ -294,7 +294,7 @@ export default function Trade() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
       <AnimatePresence>
         {showSuccess && tradeResult && (
           <motion.div
@@ -304,31 +304,31 @@ export default function Trade() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
             onClick={() => { setShowSuccess(false); setTradeResult(null); }}
           >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-md mx-4 rounded-3xl p-6 ${
-                theme === 'dark' 
-                  ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' 
-                  : 'bg-white border border-gray-200 shadow-2xl'
-              }`}
-            >
-              <div className="text-center mb-6">
-                <div className={`w-24 h-24 mx-auto rounded-full flex flex-col items-center justify-center mb-4 ${
-                  tradeResult.status === 'profit' 
-                    ? 'bg-gradient-to-br from-emerald-400 to-green-500' 
-                    : tradeResult.status === 'loss'
-                    ? 'bg-gradient-to-br from-red-400 to-rose-500'
-                    : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                }`}>
-                  <span className="text-2xl font-bold text-white">
-                    {tradeResult.status === 'profit' ? '+' : tradeResult.status === 'loss' ? '-' : ''}${Math.abs(tradeResult.profit) < 10 
-                      ? Math.abs(tradeResult.profit).toFixed(2) 
-                      : Math.abs(tradeResult.profit).toFixed(0)}
-                  </span>
-                </div>
+<motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-sm sm:max-w-md mx-3 sm:mx-4 rounded-2xl sm:rounded-3xl p-4 sm:p-6 ${
+              theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700'
+                : 'bg-white border border-gray-200 shadow-2xl'
+            }`}
+          >
+            <div className="text-center mb-4 sm:mb-6">
+              <div className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex flex-col items-center justify-center mb-3 sm:mb-4 ${
+                tradeResult.status === 'profit'
+                  ? 'bg-gradient-to-br from-emerald-400 to-green-500'
+                  : tradeResult.status === 'loss'
+                  ? 'bg-gradient-to-br from-red-400 to-rose-500'
+                  : 'bg-gradient-to-br from-gray-400 to-gray-500'
+              }`}>
+                <span className="text-lg sm:text-2xl font-bold text-white">
+                  {tradeResult.status === 'profit' ? '+' : tradeResult.status === 'loss' ? '-' : ''}${Math.abs(tradeResult.profit) < 10
+                    ? Math.abs(tradeResult.profit).toFixed(2)
+                    : Math.abs(tradeResult.profit).toFixed(0)}
+                </span>
+              </div>
                 <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Trade Executed Successfully!
                 </h2>
@@ -427,16 +427,16 @@ export default function Trade() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        <h1 className={`text-2xl sm:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           Trade
         </h1>
-        <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className={`mt-1 sm:mt-2 text-sm sm:text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           Buy and sell cryptocurrencies with advanced trading tools
         </p>
       </motion.div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -447,44 +447,44 @@ export default function Trade() {
                 : 'bg-white border border-gray-200 shadow-xl shadow-gray-200/50'
             }`}
           >
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
               <button
                 onClick={() => setShowCoinSelect(true)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl ${
-                  theme === 'dark' 
-                    ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80' 
+                className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl w-full sm:w-auto ${
+                  theme === 'dark'
+                    ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80'
                     : 'bg-gray-100 hover:bg-gray-200'
                 } transition-colors`}
               >
                 {selectedCoin ? (
                   <>
-                    <img src={selectedCoin.image} alt={selectedCoin.name} className="w-8 h-8 rounded-full" />
-                    <span className="font-bold text-lg">{selectedCoin.symbol.toUpperCase()}</span>
-                    <FiChevronDown className="w-5 h-5 text-gray-400" />
+                    <img src={selectedCoin.image} alt={selectedCoin.name} className="w-6 h-6 sm:w-8 sm:h-8 rounded-full" />
+                    <span className="font-bold text-base sm:text-lg">{selectedCoin.symbol.toUpperCase()}</span>
+                    <FiChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                   </>
                 ) : (
-                  <span className="text-gray-400">Select Coin</span>
+                  <span className="text-gray-400 text-sm sm:text-base">Select Coin</span>
                 )}
               </button>
-              
+
               {selectedCoin && (
-                <div className="flex-1">
-                  <div className="flex items-baseline gap-3">
-                    <motion.span 
+                <div className="flex-1 w-full">
+                  <div className="flex items-baseline gap-2 sm:gap-3">
+                    <motion.span
                       key={selectedCoin.current_price}
                       initial={{ scale: 1.05, color: selectedCoin.price_change_percentage_24h >= 0 ? '#34d399' : '#f87171' }}
                       animate={{ scale: 1, color: theme === 'dark' ? '#ffffff' : '#000000' }}
                       transition={{ duration: 0.3 }}
-                      className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+                      className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
                     >
                       ${selectedCoin.current_price?.toLocaleString()}
                     </motion.span>
-                    <span className={`text-sm font-medium ${priceChangeClass(selectedCoin.price_change_percentage_24h)}`}>
+                    <span className={`text-xs sm:text-sm font-medium ${priceChangeClass(selectedCoin.price_change_percentage_24h)}`}>
                       {selectedCoin.price_change_percentage_24h >= 0 ? '+' : ''}
                       {selectedCoin.price_change_percentage_24h?.toFixed(2)}%
                     </span>
                   </div>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
                     24h High: ${selectedCoin.high_24h?.toLocaleString()} | 24h Low: ${selectedCoin.low_24h?.toLocaleString()}
                   </p>
                 </div>
@@ -496,22 +496,22 @@ export default function Trade() {
                   theme === 'dark' ? 'hover:bg-[var(--bg-tertiary)]' : 'hover:bg-gray-100'
                 } transition-colors`}
               >
-                <FiRefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                <FiRefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
               {[
                 { label: 'Market Cap', value: `$${(selectedCoin?.market_cap / 1e9).toFixed(2)}B` },
                 { label: 'Volume 24h', value: `$${(selectedCoin?.total_volume / 1e9).toFixed(2)}B` },
                 { label: 'Circulating', value: `${(selectedCoin?.circulating_supply / 1e6).toFixed(2)}M` },
                 { label: 'ATH', value: `$${selectedCoin?.ath?.toLocaleString()}` },
               ].map((stat) => (
-                <div key={stat.label} className={`p-3 rounded-xl ${
+                <div key={stat.label} className={`p-2 sm:p-3 rounded-xl ${
                   theme === 'dark' ? 'bg-[var(--bg-tertiary)]/50' : 'bg-gray-50'
                 }`}>
                   <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</p>
-                  <p className={`font-semibold mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{stat.value}</p>
+                  <p className={`font-semibold text-sm sm:text-base mt-0.5 sm:mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -547,24 +547,24 @@ export default function Trade() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`rounded-2xl p-6 ${
-              theme === 'dark' 
-                ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]' 
+            className={`rounded-2xl p-4 sm:p-6 ${
+              theme === 'dark'
+                ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
                 : 'bg-white border border-gray-200 shadow-xl shadow-gray-200/50'
             }`}
           >
-            <h3 className={`text-lg font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-lg font-bold mb-3 sm:mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               Market Overview
             </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+              <table className="w-full min-w-[500px] sm:min-w-0">
                 <thead>
                   <tr className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} border-b border-[var(--border-color)]`}>
-                    <th className="text-left py-3 px-2">Coin</th>
-                    <th className="text-right py-3 px-2">Price</th>
-                    <th className="text-right py-3 px-2">24h %</th>
-                    <th className="text-right py-3 px-2">Market Cap</th>
-                    <th className="text-right py-3 px-2">Action</th>
+                    <th className="text-left py-2 sm:py-3 px-2">Coin</th>
+                    <th className="text-right py-2 sm:py-3 px-2">Price</th>
+                    <th className="text-right py-2 sm:py-3 px-2 hidden sm:table-cell">24h %</th>
+                    <th className="text-right py-2 sm:py-3 px-2 hidden md:table-cell">Market Cap</th>
+                    <th className="text-right py-2 sm:py-3 px-2">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -576,39 +576,39 @@ export default function Trade() {
                       } transition-colors cursor-pointer`}
                       onClick={() => setSelectedCoin(coin)}
                     >
-                      <td className="py-3 px-2">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2 sm:py-3 px-2">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(coin.id); }}
                             className={`p-1 ${favorites.includes(coin.id) ? 'text-amber-400' : 'text-gray-500'}`}
                           >
-                            <FiStar className={`w-4 h-4 ${favorites.includes(coin.id) ? 'fill-current' : ''}`} />
+                            <FiStar className={`w-3 h-3 sm:w-4 sm:h-4 ${favorites.includes(coin.id) ? 'fill-current' : ''}`} />
                           </button>
-                          <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />
+                          <img src={coin.image} alt={coin.name} className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" />
                           <div>
-                            <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            <p className={`font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                               {coin.name}
                             </p>
-                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <p className={`text-xs hidden sm:block ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                               {coin.symbol.toUpperCase()}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className={`text-right py-3 px-2 font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      <td className={`text-right py-2 sm:py-3 px-2 font-medium text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         ${coin.current_price?.toLocaleString()}
                       </td>
-                      <td className={`text-right py-3 px-2 font-medium ${priceChangeClass(coin.price_change_percentage_24h)}`}>
+                      <td className={`text-right py-2 sm:py-3 px-2 font-medium text-sm hidden sm:table-cell ${priceChangeClass(coin.price_change_percentage_24h)}`}>
                         {coin.price_change_percentage_24h >= 0 ? '+' : ''}
                         {coin.price_change_percentage_24h?.toFixed(2)}%
                       </td>
-                      <td className={`text-right py-3 px-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <td className={`text-right py-2 sm:py-3 px-2 text-sm hidden md:table-cell ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                         ${(coin.market_cap / 1e9).toFixed(2)}B
                       </td>
-                      <td className="text-right py-3 px-2">
+                      <td className="text-right py-2 sm:py-3 px-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); setSelectedCoin(coin); }}
-                          className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+                          className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-primary/10 text-primary text-xs sm:text-sm font-medium hover:bg-primary/20 transition-colors"
                         >
                           Trade
                         </button>
@@ -625,15 +625,15 @@ export default function Trade() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="space-y-6"
+          className="space-y-4 lg:space-y-6"
         >
-          <div className={`rounded-3xl p-6 ${
-            theme === 'dark' 
-              ? 'bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-color)]' 
+          <div className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 ${
+            theme === 'dark'
+              ? 'bg-gradient-to-br from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-color)]'
               : 'bg-gradient-to-br from-white to-gray-50 border border-gray-200 shadow-xl shadow-gray-200/50'
           }`}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-5">
+              <h3 className={`text-base sm:text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 Quick Trade
               </h3>
               <button
@@ -653,39 +653,39 @@ export default function Trade() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => setShowCoinSelect(true)}
-                className={`w-full p-4 rounded-2xl mb-5 text-left transition-all hover:opacity-90 ${
-                  side === 'buy' 
+                className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl mb-4 sm:mb-5 text-left transition-all hover:opacity-90 ${
+                  side === 'buy'
                     ? 'bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20'
                     : 'bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-500/20'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <div className={`relative`}>
-                      <img src={selectedCoin.image} alt={selectedCoin.name} className="w-12 h-12 rounded-full" />
-                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
+                      <img src={selectedCoin.image} alt={selectedCoin.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full" />
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center ${
                         side === 'buy' ? 'bg-emerald-500' : 'bg-red-500'
                       }`}>
-                        {side === 'buy' ? <FiTrendingUp className="w-3 h-3 text-white" /> : <FiTrendingDown className="w-3 h-3 text-white" />}
+                        {side === 'buy' ? <FiTrendingUp className="w-2 h-2 sm:w-3 sm:h-3 text-white" /> : <FiTrendingDown className="w-2 h-2 sm:w-3 sm:h-3 text-white" />}
                       </div>
                     </div>
                     <div>
-                      <p className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      <p className={`font-bold text-base sm:text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {selectedCoin.symbol.toUpperCase()}/USDT
                       </p>
-                      <motion.p 
+                      <motion.p
                         key={selectedCoin.current_price}
                         initial={{ scale: 1.1 }}
                         animate={{ scale: 1 }}
-                        className={`text-sm font-medium ${priceChangeClass(selectedCoin.price_change_percentage_24h)}`}
+                        className={`text-xs sm:text-sm font-medium ${priceChangeClass(selectedCoin.price_change_percentage_24h)}`}
                       >
                         ${selectedCoin.current_price?.toLocaleString()}
                       </motion.p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right hidden sm:block">
                     <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>24h Change</p>
-                    <motion.p 
+                    <motion.p
                       key={selectedCoin.price_change_percentage_24h}
                       initial={{ opacity: 0.5 }}
                       animate={{ opacity: 1 }}
@@ -695,38 +695,38 @@ export default function Trade() {
                       {selectedCoin.price_change_percentage_24h?.toFixed(2)}%
                     </motion.p>
                   </div>
-                  <FiChevronRight className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <FiChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
                 </div>
               </motion.button>
             )}
 
-            <div className="flex gap-2 mb-5">
+            <div className="flex gap-2 mb-4 sm:mb-5">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSide('buy')}
-                className={`flex-1 py-3.5 rounded-xl font-bold text-base transition-all relative overflow-hidden ${
+                className={`flex-1 py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base transition-all relative overflow-hidden ${
                   side === 'buy'
                     ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500 text-white shadow-lg shadow-emerald-500/30'
                     : theme === 'dark' ? 'bg-[var(--bg-tertiary)] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {side === 'buy' && (
-                  <motion.div 
+                  <motion.div
                     layoutId="buyGlow"
                     className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 opacity-50"
                   />
                 )}
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <FiTrendingUp className="w-4 h-4" />
-                  BUY
+                <span className="relative z-10 flex items-center justify-center gap-1 sm:gap-2">
+                  <FiTrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">BUY</span>
                 </span>
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSide('sell')}
-                className={`flex-1 py-3.5 rounded-xl font-bold text-base transition-all relative overflow-hidden ${
+                className={`flex-1 py-3 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base transition-all relative overflow-hidden ${
                   side === 'sell'
                     ? 'bg-gradient-to-r from-red-500 via-rose-500 to-red-500 text-white shadow-lg shadow-red-500/30'
                     : theme === 'dark' ? 'bg-[var(--bg-tertiary)] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600 hover:text-gray-900'
@@ -738,17 +738,18 @@ export default function Trade() {
                     className="absolute inset-0 bg-gradient-to-r from-red-400 to-rose-400 opacity-50"
                   />
                 )}
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <FiTrendingDown className="w-4 h-4" />
-                  SELL
+                <span className="relative z-10 flex items-center justify-center gap-1 sm:gap-2">
+                  <FiTrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">SELL</span>
                 </span>
               </motion.button>
             </div>
 
-            <div className="mb-5">
-              <label className={`flex items-center gap-2 text-sm font-medium mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className="mb-4 sm:mb-5">
+              <label className={`flex items-center gap-2 text-sm font-medium mb-2 sm:mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                 <FiClock className="w-4 h-4" />
-                Duration
+                <span className="hidden sm:inline">Duration</span>
+                <span className="sm:hidden">Time</span>
                 <div className="relative group ml-auto">
                   <FiInfo className="w-4 h-4 cursor-help" />
                   <div className={`absolute right-0 top-6 px-3 py-2 rounded-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 ${
@@ -758,14 +759,14 @@ export default function Trade() {
                   </div>
                 </div>
               </label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {durations.map((d) => (
                   <motion.button
                     key={d.value}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedDuration(d)}
-                    className={`relative p-3 rounded-xl text-center transition-all ${
+                    className={`relative p-2 sm:p-3 rounded-xl text-center transition-all ${
                       selectedDuration?.value === d.value
                         ? side === 'buy'
                           ? 'bg-emerald-500/20 border-2 border-emerald-500'

@@ -13,6 +13,7 @@ import { FaChartBar, FaChartLine, FaUsers, FaExchangeAlt, FaBell, FaUserShield }
 import { useAuthStore, API_URL } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import ThemeToggle from './ui/ThemeToggle'
+import useAdminUpdates from '../hooks/useAdminUpdates'
 
 const navItems = [
   { path: '/dashboard', icon: FiHome, label: 'Dashboard' },
@@ -41,17 +42,29 @@ const profileMenuItems = [
 ]
 
 export default function Layout() {
-  const { user, logout, fetchUser, token } = useAuthStore()
+  const { user, logout, token, fetchUser } = useAuthStore()
+  const { initTheme, theme, setTheme } = useThemeStore()
+
   const [notifications, setNotifications] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [marketStatus, setMarketStatus] = useState('open')
   const [marketOpen, setMarketOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { initTheme, theme, setTheme } = useThemeStore()
+  const [notifList, setNotifList] = useState([])
+
   const navigate = useNavigate()
   const profileRef = useRef(null)
   const notificationsRef = useRef(null)
+
+  useAdminUpdates({
+    enabled: true,
+    specificEvents: ['user_updated'],
+    onUpdate: () => {
+      console.log('User updated, refreshing...')
+      fetchUser()
+    }
+  })
 
   useEffect(() => {
     if (token) {
@@ -63,6 +76,30 @@ export default function Layout() {
           setNotifications(data.unreadCount || 0)
         })
         .catch(() => {})
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (token) {
+      const interval = setInterval(() => {
+        fetch(`${API_URL}/notifications?limit=1`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.notifications && data.notifications.length > 0) {
+              const latest = data.notifications[0]
+              const now = new Date()
+              const notifTime = new Date(latest.createdAt)
+              const diff = (now - notifTime) / 1000
+              if (diff < 10) {
+                setNotifications(prev => prev + 1)
+              }
+            }
+          })
+          .catch(() => {})
+      }, 5000)
+      return () => clearInterval(interval)
     }
   }, [token])
 
@@ -95,8 +132,6 @@ export default function Layout() {
   const toggleMarket = () => {
     setMarketStatus(prev => prev === 'open' ? 'closed' : 'open')
   }
-
-  const [notifList, setNotifList] = useState([])
 
   useEffect(() => {
     if (token && showNotifications) {

@@ -193,7 +193,7 @@ const StatCard = ({ value, label, delay = 0 }) => {
       transition={{ delay, duration: 0.6 }}
       className="text-center"
     >
-      <p className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+      <p className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
         <AnimatedCounter value={value} />
       </p>
       <p className={`mt-2 text-lg ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -1551,7 +1551,7 @@ export default function Landing() {
         {/* ===== SECTION 14: FOOTER ===== */}
         <footer className={`border-t ${theme === 'dark' ? 'border-white/10 bg-gray-950' : 'border-gray-200 bg-gray-50'}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-12">
               <div>
                 <Link to="/" className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">

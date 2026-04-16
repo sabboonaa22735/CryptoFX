@@ -203,7 +203,7 @@ export default function Register() {
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-lg"
+        className="relative z-10 w-full max-w-lg sm:max-w-xl"
       >
         <motion.div 
           className="absolute -inset-1 rounded-[2rem] opacity-40 blur-xl"
@@ -228,7 +228,7 @@ export default function Register() {
             />
           </div>
 
-          <div className="relative p-8 pt-28">
+          <div className="relative p-6 sm:p-8 pt-20 sm:pt-28">
             <motion.div
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -249,7 +249,7 @@ export default function Register() {
                   </motion.div>
                 </div>
               </motion.div>
-              <h1 className={`text-3xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 Create Account
               </h1>
               <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
@@ -261,7 +261,7 @@ export default function Register() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="grid grid-cols-2 gap-3 mb-6"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
             >
               {benefits.slice(0, 2).map((benefit, i) => (
                 <motion.div
@@ -302,7 +302,7 @@ export default function Register() {
                   Full Name
                 </label>
                 <div className="relative">
-                  <FiUser className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'name' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <FiUser className={`absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'name' ? 'text-blue-500' : 'text-gray-400'}`} />
                   <input
                     type="text"
                     value={name}
@@ -310,7 +310,7 @@ export default function Register() {
                     onFocus={() => setFocusedField('name')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="John Doe"
-                    className={`w-full pl-14 pr-5 py-5 rounded-2xl transition-all outline-none backdrop-blur-md ${
+                    className={`w-full pl-12 sm:pl-14 pr-5 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl transition-all outline-none backdrop-blur-md ${
                       theme === 'dark'
                         ? 'bg-white/5 border border-white/15 focus:border-blue-500/50 text-white'
                         : 'bg-white/60 border border-gray-200/50 focus:border-blue-500/50 text-gray-900'
@@ -329,7 +329,7 @@ export default function Register() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <FiMail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'email' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <FiMail className={`absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'email' ? 'text-blue-500' : 'text-gray-400'}`} />
                   <input
                     type="email"
                     value={email}
@@ -356,7 +356,7 @@ export default function Register() {
                       }
                     }}
                     placeholder="john@example.com"
-                    className={`w-full pl-14 pr-5 py-5 rounded-2xl transition-all outline-none backdrop-blur-md ${
+                    className={`w-full pl-12 sm:pl-14 pr-5 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl transition-all outline-none backdrop-blur-md ${
                       theme === 'dark'
                         ? 'bg-white/5 border border-white/15 focus:border-blue-500/50 text-white'
                         : 'bg-white/60 border border-gray-200/50 focus:border-blue-500/50 text-gray-900'
@@ -375,7 +375,7 @@ export default function Register() {
                   Phone Number
                 </label>
                 <div className="relative">
-                  <FiPhone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'phone' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <FiPhone className={`absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'phone' ? 'text-blue-500' : 'text-gray-400'}`} />
                   <input
                     type="tel"
                     value={phone}
@@ -383,7 +383,7 @@ export default function Register() {
                     onFocus={() => setFocusedField('phone')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="+1 (555) 123-4567"
-                    className={`w-full pl-14 pr-5 py-5 rounded-2xl transition-all outline-none backdrop-blur-md ${
+                    className={`w-full pl-12 sm:pl-14 pr-5 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl transition-all outline-none backdrop-blur-md ${
                       theme === 'dark'
                         ? 'bg-white/5 border border-white/15 focus:border-blue-500/50 text-white'
                         : 'bg-white/60 border border-gray-200/50 focus:border-blue-500/50 text-gray-900'
@@ -402,7 +402,7 @@ export default function Register() {
                   Password
                 </label>
                 <div className="relative">
-                  <FiLock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'password' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <FiLock className={`absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'password' ? 'text-blue-500' : 'text-gray-400'}`} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
@@ -410,7 +410,7 @@ export default function Register() {
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="Create password"
-                    className={`w-full pl-14 pr-14 py-5 rounded-2xl transition-all outline-none backdrop-blur-md ${
+                    className={`w-full pl-12 sm:pl-14 pr-14 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl transition-all outline-none backdrop-blur-md ${
                       theme === 'dark'
                         ? 'bg-white/5 border border-white/15 focus:border-blue-500/50 text-white'
                         : 'bg-white/60 border border-gray-200/50 focus:border-blue-500/50 text-gray-900'
@@ -455,7 +455,7 @@ export default function Register() {
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <FiLock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'confirm' ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <FiLock className={`absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-5 h-5 ${focusedField === 'confirm' ? 'text-blue-500' : 'text-gray-400'}`} />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
@@ -463,7 +463,7 @@ export default function Register() {
                     onFocus={() => setFocusedField('confirm')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="Confirm password"
-                    className={`w-full pl-14 pr-14 py-5 rounded-2xl transition-all outline-none backdrop-blur-md ${
+                    className={`w-full pl-12 sm:pl-14 pr-14 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl transition-all outline-none backdrop-blur-md ${
                       theme === 'dark'
                         ? 'bg-white/5 border border-white/15 focus:border-blue-500/50 text-white'
                         : 'bg-white/60 border border-gray-200/50 focus:border-blue-500/50 text-gray-900'
@@ -514,7 +514,7 @@ export default function Register() {
                 disabled={isLoading}
                 whileHover={{ scale: 1.02, boxShadow: '0 20px 40px rgba(59, 130, 246, 0.4)' }}
                 whileTap={{ scale: 0.98 }}
-                className="relative w-full py-5 rounded-2xl font-semibold text-lg text-white overflow-hidden disabled:opacity-50 backdrop-blur-md shadow-xl shadow-blue-500/30"
+                className="relative w-full py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-base md:text-lg text-white overflow-hidden disabled:opacity-50 backdrop-blur-md shadow-xl shadow-blue-500/30"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500" />
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 opacity-0 hover:opacity-100 transition-opacity" />
@@ -552,7 +552,7 @@ export default function Register() {
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleGoogleClick}
-                className={`relative w-full py-4 rounded-2xl font-medium transition-all overflow-hidden group ${
+                className={`relative w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-medium transition-all overflow-hidden group ${
                   theme === 'dark'
                     ? 'bg-white/5 border border-white/10 hover:bg-white/10'
                     : 'bg-white/80 border border-gray-200 hover:bg-gray-50'

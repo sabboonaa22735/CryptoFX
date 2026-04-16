@@ -6,7 +6,7 @@ const decodeToken = (token) => {
   try {
     const base64Url = token.split('.')[1]
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => 
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
       '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
     ).join(''))
     return JSON.parse(jsonPayload)
@@ -14,6 +14,8 @@ const decodeToken = (token) => {
     return null
   }
 }
+
+const getSuperAdminToken = () => localStorage.getItem('superadminToken') || localStorage.getItem('token')
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion'
 import { 
@@ -439,7 +441,7 @@ const LoginPage = ({ onLogin, isLoading }) => {
         initial={{ opacity: 0, scale: 0.9, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-md"
+        className="relative z-10 w-full max-w-md sm:max-w-lg"
       >
         <motion.div 
           className="absolute -inset-1 rounded-[2rem] opacity-50 blur-xl"
@@ -472,7 +474,7 @@ const LoginPage = ({ onLogin, isLoading }) => {
             />
           </div>
 
-          <div className="relative p-8 pt-24">
+          <div className="relative p-6 sm:p-8 pt-20 sm:pt-24">
             <motion.div
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -509,7 +511,7 @@ const LoginPage = ({ onLogin, isLoading }) => {
                   </motion.div>
                 </div>
               </motion.div>
-              <h1 className={`text-3xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 Super Admin Portal
               </h1>
               <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
@@ -771,7 +773,7 @@ const DashboardPage = ({ onLogout }) => {
       setNotificationsLoading(true)
       try {
         const res = await fetch(`${API_URL}/superadmin/notifications?limit=20`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
         })
         const data = await res.json()
         if (data.notifications) {
@@ -815,7 +817,7 @@ const DashboardPage = ({ onLogout }) => {
     try {
       await fetch(`${API_URL}/superadmin/notifications/${id}/read`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       setNotifications(notifications.map(n => 
         n.id === id ? { ...n, read: true } : n
@@ -830,7 +832,7 @@ const DashboardPage = ({ onLogout }) => {
     try {
       await fetch(`${API_URL}/superadmin/notifications/read-all`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       setNotifications(notifications.map(n => ({ ...n, read: true })))
       showNotification('All notifications marked as read')
@@ -845,7 +847,7 @@ const DashboardPage = ({ onLogout }) => {
     queryKey: ['superadmin-stats'],
     queryFn: async () => {
       const res = await fetch(`${API_URL}/superadmin/dashboard`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       return res.json()
     },
@@ -863,7 +865,7 @@ const DashboardPage = ({ onLogout }) => {
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${API_URL}/superadmin/users`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       const data = await res.json()
       const usersArray = Array.isArray(data) ? data : (data.users || [])
@@ -885,7 +887,7 @@ const DashboardPage = ({ onLogout }) => {
     queryKey: ['superadmin-transactions'],
     queryFn: async () => {
       const res = await fetch(`${API_URL}/superadmin/transactions`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       const data = await res.json()
       return Array.isArray(data) ? data : (data.transactions || [])
@@ -905,7 +907,7 @@ const DashboardPage = ({ onLogout }) => {
     queryKey: ['superadmin-trades'],
     queryFn: async () => {
       const res = await fetch(`${API_URL}/superadmin/trades`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       const data = await res.json()
       return Array.isArray(data) ? data : (data.trades || [])
@@ -947,7 +949,7 @@ const DashboardPage = ({ onLogout }) => {
         initial={false}
         animate={{ width: sidebarOpen ? 280 : 80 }}
         transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-        className="fixed left-0 top-0 h-full backdrop-blur-xl bg-gray-900/50 border-r border-white/5 z-50"
+        className="fixed left-0 top-0 h-full backdrop-blur-xl bg-gray-900/50 border-r border-white/5 z-50 hidden lg:flex flex-col"
       >
         <div className="flex flex-col h-full">
           <div className="p-6 flex items-center justify-between border-b border-white/5">
@@ -1033,7 +1035,21 @@ const DashboardPage = ({ onLogout }) => {
         </div>
       </MotionDiv>
 
-      <div className={`flex-1 ${sidebarOpen ? 'ml-72' : 'ml-24'} transition-all duration-300`}>
+      <div className={`flex-1 ${sidebarOpen ? 'ml-72' : 'ml-20'} transition-all duration-300`}>
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-white/5 bg-gray-950/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-cyan-500 to-purple-500 flex items-center justify-center">
+              <FaShieldAlt className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white">CryptoFX</span>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+          >
+            {sidebarOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
+          </button>
+        </div>
         <AnimatePresence>
           {showToast && (
             <motion.div
@@ -1049,7 +1065,7 @@ const DashboardPage = ({ onLogout }) => {
         </AnimatePresence>
         
         <header className="sticky top-0 z-40 backdrop-blur-xl bg-gray-950/50 border-b border-white/5">
-          <div className="px-8 py-5 flex items-center justify-between">
+          <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white capitalize">{activeTab}</h1>
               <p className="text-sm text-white/40">Real-time platform monitoring</p>
@@ -1158,7 +1174,7 @@ const DashboardPage = ({ onLogout }) => {
           </div>
         </header>
 
-        <main className="p-8">
+        <main className="p-4 sm:p-6 lg:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1365,7 +1381,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -1408,7 +1424,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${getSuperAdminToken()}` 
         },
         body: JSON.stringify(formData)
       })
@@ -1481,7 +1497,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
     try {
       const res = await fetch(`/api/superadmin/users/${deletingUser._id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       if (res.ok) {
         setUsers(users.filter(u => u._id !== deletingUser._id))
@@ -1550,7 +1566,7 @@ const UsersTab = ({ users: initialUsers, showNotification }) => {
             try {
               const res = await fetch(`${API_URL}/superadmin/users/reset-balances`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
               })
               if (res.ok) {
                 setUsers(users.map(u => ({ ...u, wallet: { ...u.wallet, balance: 0 } })))
@@ -1794,7 +1810,7 @@ const TransactionsTab = ({ transactions: initialTransactions, showNotification }
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+          'Authorization': `Bearer ${getSuperAdminToken()}` 
         },
         body: JSON.stringify({ status: newStatus })
       })
@@ -3101,7 +3117,7 @@ const PortfolioTab = ({ showNotification }) => {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -3128,7 +3144,7 @@ const PortfolioTab = ({ showNotification }) => {
   useEffect(() => {
     const fetchPortfolioStats = async () => {
       try {
-        const token = localStorage.getItem('token')
+        const token = getSuperAdminToken()
         const url = selectedUserId 
           ? `/api/superadmin/portfolio-stats?userId=${selectedUserId}`
           : '/api/superadmin/portfolio-stats'
@@ -3213,7 +3229,7 @@ const PortfolioTab = ({ showNotification }) => {
 
   const handleSaveStats = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       
       const res = await fetch(`${API_URL}/superadmin/portfolio-stats`, {
         method: 'PUT',
@@ -3484,7 +3500,7 @@ const WalletTab = ({ showNotification }) => {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/users`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -3510,7 +3526,7 @@ const WalletTab = ({ showNotification }) => {
 
   const fetchWalletStats = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const url = selectedUserId 
         ? `/api/superadmin/wallet-stats?userId=${selectedUserId}`
         : '/api/superadmin/wallet-stats'
@@ -3558,7 +3574,7 @@ const WalletTab = ({ showNotification }) => {
 
   const handleSaveStats = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       
       const payload = {
         userId: selectedUserId,
@@ -3704,7 +3720,7 @@ const DepositTab = ({ showNotification }) => {
   const { data: depositsData, refetch, error } = useQuery({
     queryKey: ['superadmin-deposits'],
     queryFn: async () => {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const superadminToken = localStorage.getItem('superadminToken') || token
       const res = await fetch(`${API_URL}/superadmin/deposits`, {
         headers: { 'Authorization': `Bearer ${superadminToken}` }
@@ -3751,7 +3767,7 @@ const DepositTab = ({ showNotification }) => {
   const fetchAddresses = async () => {
     setLoadingAddresses(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/deposit-addresses`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -3811,7 +3827,7 @@ const DepositTab = ({ showNotification }) => {
     setProcessingId(deposit._id)
     
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`/api/superadmin/deposits/${deposit._id}/approve`, {
         method: 'PUT',
         headers: { 
@@ -3841,7 +3857,7 @@ const DepositTab = ({ showNotification }) => {
     setProcessingId(deposit._id)
     
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`/api/superadmin/deposits/${deposit._id}/reject`, {
         method: 'PUT',
         headers: { 
@@ -3881,7 +3897,7 @@ const DepositTab = ({ showNotification }) => {
   const handleCreateWallet = async () => {
     if (!formData.name || !formData.address) return
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const payload = {
         coin: formData.coin,
         symbol: formData.coin,
@@ -3914,7 +3930,7 @@ const DepositTab = ({ showNotification }) => {
   const handleUpdateWallet = async () => {
     if (!selectedWallet || !formData.name) return
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const payload = {
         address: formData.address,
         memo: formData.name
@@ -3951,7 +3967,7 @@ const DepositTab = ({ showNotification }) => {
   const handleDeleteWallet = async () => {
     if (!selectedWallet) return
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`/api/superadmin/deposit-addresses/${selectedWallet.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -3987,7 +4003,7 @@ const DepositTab = ({ showNotification }) => {
     const updated = wallets.map(w => w.id === wallet.id ? { ...w, status: newStatus } : w)
     setWallets(updated)
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       await fetch(`/api/superadmin/deposit-addresses/${wallet.id}`, {
         method: 'PUT',
         headers: {
@@ -4489,7 +4505,7 @@ const DepositSettingsTab = ({ showNotification }) => {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/deposit-settings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -4521,7 +4537,7 @@ const DepositSettingsTab = ({ showNotification }) => {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = getSuperAdminToken()
       const res = await fetch(`${API_URL}/superadmin/deposit-settings`, {
         method: 'PUT',
         headers: {
@@ -5657,7 +5673,7 @@ const SuperAdmin = () => {
 
   useEffect(() => {
     initTheme()
-    const token = localStorage.getItem('token')
+    const token = getSuperAdminToken()
     const currentPath = window.location.pathname
     
     if (token) {
@@ -5731,7 +5747,7 @@ const TradeSettingsTab = ({ showNotification }) => {
     setLoading(true)
     try {
       const res = await fetch(`${API_URL}/superadmin/trade-settings`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${getSuperAdminToken()}` }
       })
       if (res.ok) {
         const data = await res.json()
@@ -5755,7 +5771,7 @@ const TradeSettingsTab = ({ showNotification }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getSuperAdminToken()}`
         },
         body: JSON.stringify(updatedSettings)
       })
@@ -5780,7 +5796,7 @@ const TradeSettingsTab = ({ showNotification }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getSuperAdminToken()}`
         },
         body: JSON.stringify({ durations })
       })

@@ -95,17 +95,17 @@ export default function Profile() {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
       <AnimatePresence>
         {showSuccess && (
           <motion.div
             initial={{ opacity: 0, y: -50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-4 right-4 z-50 px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-2xl shadow-emerald-500/30 flex items-center gap-3"
+            className="fixed top-4 right-4 left-4 sm:left-auto z-50 px-4 sm:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-2xl shadow-emerald-500/30 flex items-center gap-2 sm:gap-3"
           >
-            <FiCheckCircle className="w-6 h-6" />
-            <span className="font-semibold">{successMessage}</span>
+            <FiCheckCircle className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+            <span className="font-semibold text-sm sm:text-base">{successMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -113,35 +113,35 @@ export default function Profile() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6 sm:mb-8"
       >
-        <h1 className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        <h1 className={`text-2xl sm:text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           Profile Settings
         </h1>
-        <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+        <p className={`mt-1 sm:mt-2 text-sm sm:text-base ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           Manage your trading profile and account settings
         </p>
       </motion.div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:w-72 shrink-0"
+          className="lg:w-72 shrink-0 w-full lg:sticky lg:top-24"
         >
-          <div className={`sticky top-24 rounded-3xl p-6 ${
+          <div className={`rounded-2xl lg:rounded-3xl p-4 sm:p-6 ${
             theme === 'dark' ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]' : 'bg-white border border-gray-200 shadow-xl shadow-gray-200/50'
           }`}>
-            <div className="text-center mb-6">
-              <motion.div 
+            <div className="text-center mb-4 sm:mb-6">
+              <motion.div
                 className="relative inline-block"
                 whileHover={{ scale: 1.05 }}
               >
-                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary via-secondary to-purple-500 p-1 shadow-2xl shadow-primary/30">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-full bg-gradient-to-br from-primary via-secondary to-purple-500 p-1 shadow-2xl shadow-primary/30">
                   {user?.avatar ? (
                     <img src={user.avatar} alt={user?.name} className="w-full h-full rounded-full object-cover" />
                   ) : (
-                    <div className={`w-full h-full rounded-full flex items-center justify-center text-4xl font-bold ${
+                    <div className={`w-full h-full rounded-full flex items-center justify-center text-3xl sm:text-4xl font-bold ${
                       theme === 'dark' ? 'bg-[var(--bg-secondary)]' : 'bg-white'
                     }`}>
                       {user?.name?.charAt(0) || 'U'}
@@ -152,16 +152,16 @@ export default function Profile() {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => avatarInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center shadow-lg shadow-primary/40 hover:shadow-primary/60 transition-shadow"
+                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center shadow-lg shadow-primary/40 hover:shadow-primary/60 transition-shadow"
                 >
                   {uploadingAvatar ? (
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                      className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full"
                     />
                   ) : (
-                    <FiCamera className="w-5 h-5" />
+                    <FiCamera className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
                 </motion.button>
                 <input
@@ -172,16 +172,16 @@ export default function Profile() {
                   className="hidden"
                 />
               </motion.div>
-              <h3 className={`text-xl font-bold mt-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-lg sm:text-xl font-bold mt-3 sm:mt-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                 {user?.name || 'User'}
               </h3>
-              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                 {user?.email || 'user@example.com'}
               </p>
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className={`inline-flex items-center gap-2 mt-3 px-4 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r ${
+                className={`inline-flex items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-gradient-to-r ${
                   verificationLevels[userVerificationLevel].color === 'emerald' ? 'from-emerald-500/20 to-green-500/20 text-emerald-400' :
                   verificationLevels[userVerificationLevel].color === 'amber' ? 'from-amber-500/20 to-orange-500/20 text-amber-400' :
                   verificationLevels[userVerificationLevel].color === 'purple' ? 'from-purple-500/20 to-pink-500/20 text-purple-400' :
@@ -189,44 +189,44 @@ export default function Profile() {
                   'from-gray-500/20 to-gray-600/20 text-gray-400'
                 }`}
               >
-                <FiShield className="w-4 h-4" />
+                <FiShield className="w-3 h-3 sm:w-4 sm:h-4" />
                 {verificationLevels[userVerificationLevel].name} Verified
               </motion.div>
             </div>
 
-                  <div className="space-y-2">
-                    {tabs.map((tab) => (
-                      <motion.button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        whileHover={{ x: 4, scale: 1.02 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all cursor-pointer ${
-                          activeTab === tab.id
-                            ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/30'
-                            : theme === 'dark'
-                            ? 'text-gray-400 hover:text-white hover:bg-[var(--bg-tertiary)]/50'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        <motion.div
-                          whileHover={{ rotate: 10 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <tab.icon className="w-5 h-5" />
-                        </motion.div>
-                        <span className="font-medium">{tab.label}</span>
-                        {activeTab === tab.id && (
-                          <motion.div
-                            layoutId="activeTab"
-                            className="ml-auto"
-                          >
-                            <FiCheck className="w-5 h-5" />
-                          </motion.div>
-                        )}
-                      </motion.button>
-                    ))}
-                  </div>
+            <div className="space-y-1 sm:space-y-2">
+              {tabs.map((tab) => (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  whileHover={{ x: 4, scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/30'
+                      : theme === 'dark'
+                      ? 'text-gray-400 hover:text-white hover:bg-[var(--bg-tertiary)]/50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <motion.div
+                    whileHover={{ rotate: 10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <tab.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </motion.div>
+                  <span className="font-medium text-sm sm:text-base">{tab.label}</span>
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="ml-auto"
+                    >
+                      <FiCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </motion.div>
+                  )}
+                </motion.button>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -242,9 +242,9 @@ export default function Profile() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {tradingStats.map((stat, i) => (
                     <motion.div
                       key={stat.label}
@@ -252,24 +252,24 @@ export default function Profile() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}
                       whileHover={{ y: -4, scale: 1.02 }}
-                      className={`p-5 rounded-2xl ${
-                        theme === 'dark' 
-                          ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]' 
+                      className={`p-4 sm:p-5 rounded-xl sm:rounded-2xl ${
+                        theme === 'dark'
+                          ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
                           : 'bg-white border border-gray-200 shadow-lg shadow-gray-200/50'
                       }`}
                     >
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center mb-2 sm:mb-3 ${
                         stat.color === 'blue' ? 'bg-blue-500/20 text-blue-400' :
                         stat.color === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' :
                         stat.color === 'amber' ? 'bg-amber-500/20 text-amber-400' :
                         'bg-purple-500/20 text-purple-400'
                       }`}>
-                        <stat.icon className="w-6 h-6" />
+                        <stat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
-                      <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      <p className={`text-lg sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {stat.value}
                       </p>
-                      <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                         {stat.label}
                       </p>
                     </motion.div>
@@ -278,38 +278,38 @@ export default function Profile() {
 
                 <motion.div
                   whileHover={{ scale: 1.01 }}
-                  className={`p-6 rounded-2xl ${
-                    theme === 'dark' 
-                      ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]' 
+                  className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl ${
+                    theme === 'dark'
+                      ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
                       : 'bg-white border border-gray-200 shadow-lg shadow-gray-200/50'
                   }`}
                 >
-                  <h3 className={`text-lg font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className={`text-base sm:text-lg font-bold mb-3 sm:mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     Recent Activity
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {recentActivity.map((activity, i) => (
                       <motion.div
                         key={i}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className={`flex items-center gap-4 p-4 rounded-xl ${
+                        className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl ${
                           theme === 'dark' ? 'bg-[var(--bg-tertiary)]/50' : 'bg-gray-50'
                         }`}
                       >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
                           activity.type === 'trade' ? 'bg-blue-500/20 text-blue-400' :
                           activity.type === 'deposit' ? 'bg-emerald-500/20 text-emerald-400' :
                           'bg-purple-500/20 text-purple-400'
                         }`}>
-                          <activity.icon className="w-5 h-5" />
+                          <activity.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </div>
                         <div className="flex-1">
-                          <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                          <p className={`font-medium text-sm sm:text-base ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                             {activity.text}
                           </p>
-                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <p className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
                             {activity.time}
                           </p>
                         </div>
@@ -320,18 +320,18 @@ export default function Profile() {
 
                 <motion.div
                   whileHover={{ scale: 1.01 }}
-                  className={`p-6 rounded-2xl ${
-                    theme === 'dark' 
-                      ? 'bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20' 
+                  className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl ${
+                    theme === 'dark'
+                      ? 'bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20'
                       : 'bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30">
-                      <FiAward className="w-7 h-7 text-white" />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30">
+                      <FiAward className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h3 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                      <h3 className={`text-base sm:text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         Upgrade Your Verification Level
                       </h3>
                       <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -342,7 +342,7 @@ export default function Profile() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setActiveTab('verification')}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-shadow"
+                      className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-shadow w-full sm:w-auto text-center"
                     >
                       Verify Now
                     </motion.button>
@@ -357,14 +357,14 @@ export default function Profile() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
-                <div className={`p-6 rounded-2xl ${
-                  theme === 'dark' 
-                    ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]' 
+                <div className={`p-4 sm:p-6 rounded-xl sm:rounded-2xl ${
+                  theme === 'dark'
+                    ? 'bg-[var(--bg-secondary)] border border-[var(--border-color)]'
                     : 'bg-white border border-gray-200 shadow-xl shadow-gray-200/50'
                 }`}>
-                  <h3 className={`text-lg font-bold mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className={`text-base sm:text-lg font-bold mb-4 sm:mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     Personal Information
                   </h3>
                   

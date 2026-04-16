@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const { auth, adminAuth } = require('../middleware/auth');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const Trade = require('../models/Trade');
 const { createNotification, createAdminNotification } = require('../utils/notifications');
 const { getIO, emitAdminNotification } = require('../sockets');
 const path = require('path');
@@ -252,6 +253,53 @@ router.get('/transactions', auth, async (req, res) => {
       currentPage: page,
       total
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/history', auth, async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+
+    const transactions = await Transaction.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(limit * 1);
+
+    const trades = await Trade.find({ 
+      user: req.user.id,
+      status: 'completed'
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit * 1);
+
+    const historyItems = [
+      ...transactions.map(t => ({
+        _id: t._id,
+        type: t.type,
+        amount: t.amount,
+        status: t.status,
+        createdAt: t.createdAt,
+        source: 'transaction',
+        coinSymbol: t.coinSymbol,
+        method: t.method,
+        currency: t.currency
+      })),
+      ...trades.map(t => ({
+        _id: t._id,
+        type: 'trade',
+        amount: t.total,
+        status: t.status,
+        createdAt: t.createdAt,
+        source: 'trade',
+        symbol: t.symbol,
+        tradeType: t.type,
+        profit: t.profit,
+        returnPercent: t.returnPercent
+      }))
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, limit);
+
+    res.json({ history: historyItems, total: historyItems.length });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

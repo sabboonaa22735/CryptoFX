@@ -35,8 +35,8 @@ router.post('/register', async (req, res) => {
       phone: phone || '',
       referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase(),
       referredBy: referredBy?._id,
-      wallet: { balance: 1000 },
-      walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 }
+      wallet: { balance: 0 },
+      walletStats: { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 }
     });
 
     await user.save();
@@ -349,8 +349,8 @@ router.post('/google', async (req, res) => {
           name: userName,
           avatar: userAvatar || '',
           googleId,
-          wallet: { balance: 1000 },
-          walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
+          wallet: { balance: 0 },
+          walletStats: { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
           referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
         });
         await user.save();
@@ -424,8 +424,8 @@ router.post('/apple', async (req, res) => {
         email: appleUserData.email,
         name: appleUserData.name,
         appleId: appleUserData.appleId,
-        wallet: { balance: 1000 },
-        walletStats: { availableBalance: 1000, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
+        wallet: { balance: 0 },
+        walletStats: { availableBalance: 0, totalDeposit: 0, totalWithdraw: 0, totalProfit: 0 },
         referralCode: 'CF-' + Math.random().toString(36).substr(2, 8).toUpperCase()
       });
       await user.save();
